@@ -1,0 +1,44 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Kenji Coin Catch</title>
+<style>body{margin:0;background:#0b0b10;color:#eee;font-family:system-ui,sans-serif}canvas{display:block;margin:0 auto}#hud{padding:8px 12px;font-size:18px}</style>
+</head><body>
+<div id="hud">Score: <span id="score">0</span> | caught: press SPACE</div>
+<canvas id="c" width="480" height="320"></canvas>
+<script>
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+const scoreEl = document.getElementById('score');
+let score = 0;
+const basket = { x: 200, y: 280, w: 80, h: 16 };
+let coin = { x: 120, y: 0, r: 9 };
+let left = false, right = false;
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space') { score += 1; scoreEl.textContent = String(score); coin.y = 0; coin.x = 60 + Math.random() * 340; }
+  if (e.code === 'ArrowLeft') left = true;
+  if (e.code === 'ArrowRight') right = true;
+});
+window.addEventListener('keyup', e => {
+  if (e.code === 'ArrowLeft') left = false;
+  if (e.code === 'ArrowRight') right = false;
+});
+document.body.dataset.scriptRan = 'yes';
+function loop() {
+  if (left) basket.x -= 4;
+  if (right) basket.x += 4;
+  basket.x = Math.max(0, Math.min(c.width - basket.w, basket.x));
+  coin.y += 1.2;
+  if (coin.y > c.height) { coin.y = 0; coin.x = 60 + Math.random() * 340; }
+  if (coin.y > basket.y - coin.r && coin.x > basket.x && coin.x < basket.x + basket.w) {
+    score += 1; scoreEl.textContent = String(score); coin.y = 0; coin.x = 60 + Math.random() * 340;
+  }
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.fillStyle = '#6cf';
+  ctx.fillRect(basket.x, basket.y, basket.w, basket.h);
+  ctx.fillStyle = '#fd3';
+  ctx.beginPath(); ctx.arc(coin.x, coin.y, coin.r, 0, Math.PI * 2); ctx.fill();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body></html>
+<!--kenji-preview-sha:fb4510b886d7267d-->
