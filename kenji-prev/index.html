@@ -1,16 +1,21 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>Kenji Preview Fixture</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style data-kenji-inlined-from="style.css">body { font-family: sans-serif; background: #101014; color: #eee; } h1 { color: #6cf; }</style>
+<html><head><title>Kenji Preview Fixture</title>
+<style data-kenji-inlined-from="style.css">
+body { font-family: sans-serif; background: #101014; color: #eee; }
+h1 { color: #6cf; }
+
+</style>
 </head>
-<body data-script-ran="no">
+<body>
 <h1 id="title">Fixture Home</h1>
-<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjNmNmIi8+PC9zdmc+" alt="logo" width="40" height="40">
+<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjNmNmIi8+PC9zdmc+Cg==" alt="logo" width="40" height="40">
 <button id="go">Go</button>
 <script data-kenji-inlined-from="app.js">
 document.body.dataset.scriptRan = 'yes';
-document.getElementById('go').addEventListener('click', function () {
+document.getElementById('go').addEventListener('click', () => {
   document.getElementById('title').textContent = 'Clicked v2';
 });
+
 </script>
 </body></html>
+<!--kenji-preview-sha:9ca0932c33edaba7-->
