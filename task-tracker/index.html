@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task Tracker</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f5;color:#18181b;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
+.card{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.1);padding:2rem;max-width:500px;width:100%}
+h1{font-size:1.5rem;margin-bottom:1rem}
+h2{font-size:1.25rem;margin-bottom:1rem}
+form{display:flex;flex-direction:column;gap:.75rem}
+input{padding:.625rem;border:1px solid #e4e4e7;border-radius:8px;font-size:1rem}
+button{padding:.625rem 1rem;background:#18181b;color:#fff;border:none;border-radius:8px;font-size:1rem;cursor:pointer}
+button:hover{background:#27272a}
+.switch{text-align:center;margin-top:1rem;font-size:.875rem;color:#71717a}
+.switch a{color:#18181b;cursor:pointer;text-decoration:underline}
+.error{color:#dc2626;font-size:.875rem;min-height:1.25rem}
+.task-row{display:flex;align-items:center;justify-content:space-between;padding:.75rem;border:1px solid #e4e4e7;border-radius:8px;margin-bottom:.5rem}
+.task-row button{padding:.25rem .5rem;font-size:.75rem;background:#dc2626}
+.task-row button:hover{background:#b91c1c}
+.task-input-row{display:flex;gap:.5rem;margin-bottom:1rem}
+.task-input-row input{flex:1}
+.logout{margin-bottom:1rem;text-align:right}
+.logout button{background:#71717a;padding:.375rem .75rem;font-size:.875rem}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="card" data-testid="app">
+<h1>Task Tracker</h1>
+<div id="signup-view" data-testid="signup-form">
+<h2>Create Account</h2>
+<form id="signup-form-el">
+<input type="email" data-testid="signup-email" placeholder="Email" required>
+<input type="password" data-testid="signup-password" placeholder="Password" required>
+<button type="submit" data-testid="signup-submit">Sign Up</button>
+</form>
+<p class="error" id="signup-error"></p>
+<p class="switch">Already have an account? <a id="show-login">Log in</a></p>
+</div>
+<div id="login-view" data-testid="login-form" hidden>
+<h2>Log In</h2>
+<form id="login-form-el">
+<input type="email" data-testid="login-email" placeholder="Email" required>
+<input type="password" data-testid="login-password" placeholder="Password" required>
+<button type="submit" data-testid="login-submit">Log In</button>
+</form>
+<p class="error" id="login-error"></p>
+<p class="switch">No account? <a id="show-signup">Sign up</a></p>
+</div>
+<div id="tasks-view" data-testid="task-list" hidden>
+<div class="logout"><button id="logout-btn" data-testid="logout">Log Out</button></div>
+<h2>Your Tasks</h2>
+<div class="task-input-row">
+<input type="text" data-testid="task-input" placeholder="Add a task...">
+<button data-testid="task-add">Add</button>
+</div>
+<div id="task-list-el"></div>
+</div>
+</div>
+<script>
+(function(){
+var UK='task_tracker_users',SK='task_tracker_session';
+function getUsers(){try{return JSON.parse(localStorage.getItem(UK)||'{}')}catch(e){return{}}}
+function saveUsers(u){try{localStorage.setItem(UK,JSON.stringify(u))}catch(e){}}
+function getSession(){try{return localStorage.getItem(SK)}catch(e){return null}}
+function setSession(e){try{localStorage.setItem(SK,e)}catch(e){}}
+function clearSession(){try{localStorage.removeItem(SK)}catch(e){}}
+function tk(e){return'task_tracker_tasks_'+e}
+function getTasks(e){try{return JSON.parse(localStorage.getItem(tk(e))||'[]')}catch(e){return[]}}
+function saveTasks(e,t){try{localStorage.setItem(tk(e),JSON.stringify(t))}catch(e){}}
+var sv=document.getElementById('signup-view'),lv=document.getElementById('login-view'),tv=document.getElementById('tasks-view');
+function show(v){sv.hidden=v!=='signup';lv.hidden=v!=='login';tv.hidden=v!=='tasks'}
+var sess=getSession();
+if(sess){show('tasks');renderTasks()}else{show('signup')}
+document.getElementById('show-login').addEventListener('click',function(){show('login')});
+document.getElementById('show-signup').addEventListener('click',function(){show('signup')});
+document.getElementById('signup-form-el').addEventListener('submit',function(e){
+e.preventDefault();
+var em=document.querySelector('[data-testid="signup-email"]').value;
+var pw=document.querySelector('[data-testid="signup-password"]').value;
+var u=getUsers();
+if(u[em]){document.getElementById('signup-error').textContent='Account already exists';return}
+u[em]=pw;saveUsers(u);
+show('login');
+document.querySelector('[data-testid="login-email"]').value=em;
+});
+document.getElementById('login-form-el').addEventListener('submit',function(e){
+e.preventDefault();
+var em=document.querySelector('[data-testid="login-email"]').value;
+var pw=document.querySelector('[data-testid="login-password"]').value;
+var u=getUsers();
+if(!u[em]||u[em]!==pw){document.getElementById('login-error').textContent='Invalid credentials';return}
+setSession(em);show('tasks');renderTasks();
+});
+document.getElementById('logout-btn').addEventListener('click',function(){clearSession();show('login')});
+document.querySelector('[data-testid="task-add"]').addEventListener('click',function(){
+var inp=document.querySelector('[data-testid="task-input"]');
+var t=inp.value.trim();if(!t)return;
+var em=getSession();var tasks=getTasks(em);
+tasks.push({id:Date.now(),text:t});
+saveTasks(em,tasks);inp.value='';renderTasks();
+});
+document.querySelector('[data-testid="task-input"]').addEventListener('keydown',function(e){
+if(e.key==='Enter')document.querySelector('[data-testid="task-add"]').click();
+});
+function renderTasks(){
+var em=getSession();if(!em)return;
+var tasks=getTasks(em);var list=document.getElementById('task-list-el');
+while(list.firstChild)list.removeChild(list.firstChild);
+tasks.forEach(function(task){
+var row=document.createElement('div');
+row.className='task-row';row.setAttribute('data-testid','task-row');row.setAttribute('data-task-id',task.id);
+var sp=document.createElement('span');sp.textContent=task.text;
+var del=document.createElement('button');del.textContent='Delete';del.setAttribute('data-testid','task-delete');
+del.addEventListener('click',function(){
+var ts=getTasks(em);ts=ts.filter(function(t){return t.id!==task.id});
+saveTasks(em,ts);renderTasks();
+});
+row.appendChild(sp);row.appendChild(del);list.appendChild(row);
+});
+}
+})();
+</script>
+</body>
+</html>
+<!--kenji-preview-sha:31dd4c691b7f8078-->
