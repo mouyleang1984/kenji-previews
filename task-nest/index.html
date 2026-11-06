@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>task-nest</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --accent: #6366f1;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --danger: #f87171;
+    --ok: #34d399;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 32px 16px 80px;
+  }
+  h1 {
+    font-size: 28px;
+    margin-bottom: 4px;
+  }
+  .tag {
+    color: var(--muted);
+    margin-bottom: 24px;
+  }
+  .panel {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid #334155;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    margin-top: 12px;
+  }
+  input, select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: var(--text);
+    font-size: 14px;
+  }
+  button {
+    margin-top: 16px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  button.secondary {
+    background: transparent;
+    border: 1px solid #475569;
+    color: var(--text);
+  }
+  button.link {
+    background: none;
+    color: var(--accent);
+    padding: 0;
+    margin-top: 8px;
+    text-decoration: underline;
+  }
+  .error-text {
+    color: var(--danger);
+    font-size: 13px;
+    margin-top: 8px;
+    min-height: 16px;
+  }
+  .info-text {
+    color: var(--ok);
+    font-size: 13px;
+    margin-top: 8px;
+    min-height: 16px;
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .task-form {
+    display: grid;
+    grid-template-columns: 1fr 140px;
+    gap: 10px;
+  }
+  .task-form button {
+    grid-column: span 2;
+  }
+  ul#tasks-list {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 0;
+  }
+  .task-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-bottom: 1px solid #334155;
+  }
+  .task-item.done .task-title {
+    text-decoration: line-through;
+    color: var(--muted);
+  }
+  .task-title {
+    flex: 1;
+  }
+  .task-priority {
+    font-size: 11px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #334155;
+  }
+  .task-priority.high { background: #7f1d1d; color: #fecaca; }
+  .task-priority.medium { background: #78350f; color: #fde68a; }
+  .task-priority.low { background: #064e3b; color: #a7f3d0; }
+  #setup-blocker {
+    border: 1px solid var(--danger);
+    background: #450a0a;
+    color: #fecaca;
+    padding: 16px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    white-space: pre-wrap;
+  }
+  #loading-indicator {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>task-nest</h1>
+  <div class="tag">Log in, create tasks, mark them done, persisted per-account.</div>
+
+  <div id="loading-indicator">Loading...</div>
+
+  <div id="setup-blocker" class="hidden"></div>
+
+  <section id="auth-section" class="hidden">
+    <div class="panel" id="login-form">
+      <h2>Log in</h2>
+      <label for="login-email">Email</label>
+      <input id="login-email" type="email" autocomplete="email" />
+      <label for="login-password">Password</label>
+      <input id="login-password" type="password" autocomplete="current-password" />
+      <button id="login-submit" type="button">Log in</button>
+      <div id="login-error" class="error-text"></div>
+    </div>
+
+    <div class="panel" id="signup-form">
+      <h2>Sign up</h2>
+      <label for="signup-email">Email</label>
+      <input id="signup-email" type="email" autocomplete="email" />
+      <label for="signup-password">Password</label>
+      <input id="signup-password" type="password" autocomplete="new-password" />
+      <button id="signup-submit" type="button" class="secondary">Create account</button>
+      <div id="signup-message" class="info-text"></div>
+      <div id="signup-error" class="error-text"></div>
+    </div>
+  </section>
+
+  <section id="app-section" class="hidden">
+    <div class="panel row">
+      <div>
+        Signed in as <strong id="current-email"></strong><br/>
+        Pending tasks: <span id="pending-count">0</span>
+      </div>
+      <button id="logout-btn" type="button" class="secondary">Log out</button>
+    </div>
+
+    <div class="panel">
+      <h2>New task</h2>
+      <div class="task-form">
+        <div>
+          <label for="task-title">Title</label>
+          <input id="task-title" type="text" placeholder="Write the report" />
+        </div>
+        <div>
+          <label for="task-priority">Priority</label>
+          <select id="task-priority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <button id="task-submit" type="button">Add task</button>
+      </div>
+      <div id="app-error" class="error-text"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Tasks</h2>
+      <div id="tasks-empty" class="hidden" style="color:var(--muted);">No tasks yet.</div>
+      <ul id="tasks-list"></ul>
+    </div>
+  </section>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const SUPABASE_URL = 'https://ohcyjurhonzdvkqoellw.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_YnS7FFbHc0at9QZ2jW5JpQ_T_JwkVUi';
+const TABLE = 'task_nest_tasks';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true },
+});
+
+const el = (id) => document.getElementById(id);
+
+const loadingIndicator = el('loading-indicator');
+const setupBlocker = el('setup-blocker');
+const authSection = el('auth-section');
+const appSection = el('app-section');
+const loginError = el('login-error');
+const signupMessage = el('signup-message');
+const signupError = el('signup-error');
+const appError = el('app-error');
+const currentEmail = el('current-email');
+const pendingCount = el('pending-count');
+const tasksList = el('tasks-list');
+const tasksEmpty = el('tasks-empty');
+
+function showLoading(isLoading) {
+  loadingIndicator.classList.toggle('hidden', !isLoading);
+}
+
+function showSetupBlocker(message) {
+  setupBlocker.textContent = message;
+  setupBlocker.classList.remove('hidden');
+}
+
+function clearSetupBlocker() {
+  setupBlocker.classList.add('hidden');
+  setupBlocker.textContent = '';
+}
+
+function renderSignedOut() {
+  authSection.classList.remove('hidden');
+  appSection.classList.add('hidden');
+}
+
+function renderSignedIn(email) {
+  authSection.classList.add('hidden');
+  appSection.classList.remove('hidden');
+  currentEmail.textContent = email || '';
+}
+
+function renderTasks(tasks) {
+  tasksList.innerHTML = '';
+  if (!tasks || tasks.length === 0) {
+    tasksEmpty.classList.remove('hidden');
+  } else {
+    tasksEmpty.classList.add('hidden');
+  }
+  let pending = 0;
+  (tasks || []).forEach((task) => {
+    if (!task.done) pending += 1;
+    const li = document.createElement('li');
+    li.className = 'task-item' + (task.done ? ' done' : '');
+    li.dataset.id = task.id;
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'task-done';
+    checkbox.checked = !!task.done;
+    checkbox.addEventListener('change', () => toggleDone(task.id, checkbox.checked));
+
+    const title = document.createElement('span');
+    title.className = 'task-title';
+    title.textContent = task.title;
+
+    const priority = document.createElement('span');
+    priority.className = 'task-priority ' + task.priority;
+    priority.textContent = task.priority;
+
+    li.appendChild(checkbox);
+    li.appendChild(title);
+    li.appendChild(priority);
+    tasksList.appendChild(li);
+  });
+  pendingCount.textContent = String(pending);
+}
+
+function describeSetupError(error, context) {
+  const status = error.status || error.code || 'unknown';
+  const msg = error.message || JSON.stringify(error);
+  return `Setup blocker: table "${TABLE}" is not available for "${context}".\nHTTP/response detail: status=${status} message=${msg}\nRun migrations/001-app.sql against this Supabase project to provision the table and policies.`;
+}
+
+function isMissingTableError(error) {
+  if (!error) return false;
+  const code = error.code || '';
+  const msg = (error.message || '').toLowerCase();
+  return code === '42P01' || code === 'PGRST205' || msg.includes('does not exist') || msg.includes('could not find the table');
+}
+
+async function loadTasks() {
+  appError.textContent = '';
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('id, title, priority, done, created_at')
+    .order('created_at', { ascending: true });
+  if (error) {
+    if (isMissingTableError(error)) {
+      showSetupBlocker(describeSetupError(error, 'loading tasks'));
+      renderTasks([]);
+      return;
+    }
+    appError.textContent = 'Failed to load tasks: ' + error.message;
+    return;
+  }
+  clearSetupBlocker();
+  renderTasks(data);
+}
+
+async function createTask(title, priority) {
+  appError.textContent = '';
+  const { data: userData } = await supabase.auth.getUser();
+  const owner_id = userData && userData.user ? userData.user.id : null;
+  const { error } = await supabase.from(TABLE).insert({
+    title,
+    priority,
+    done: false,
+    owner_id,
+  });
+  if (error) {
+    if (isMissingTableError(error)) {
+      showSetupBlocker(describeSetupError(error, 'creating a task'));
+      return;
+    }
+    appError.textContent = 'Failed to create task: ' + error.message;
+    return;
+  }
+  await loadTasks();
+}
+
+async function toggleDone(id, done) {
+  appError.textContent = '';
+  const { error } = await supabase.from(TABLE).update({ done }).eq('id', id);
+  if (error) {
+    if (isMissingTableError(error)) {
+      showSetupBlocker(describeSetupError(error, 'updating a task'));
+      return;
+    }
+    appError.textContent = 'Failed to update task: ' + error.message;
+    return;
+  }
+  await loadTasks();
+}
+
+el('login-submit').addEventListener('click', async () => {
+  loginError.textContent = '';
+  const email = el('login-email').value.trim();
+  const password = el('login-password').value;
+  if (!email || !password) {
+    loginError.textContent = 'Email and password are required.';
+    return;
+  }
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    loginError.textContent = error.message;
+    return;
+  }
+});
+
+el('signup-submit').addEventListener('click', async () => {
+  signupMessage.textContent = '';
+  signupError.textContent = '';
+  const email = el('signup-email').value.trim();
+  const password = el('signup-password').value;
+  if (!email || !password) {
+    signupError.textContent = 'Email and password are required.';
+    return;
+  }
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) {
+    signupError.textContent = error.message;
+    return;
+  }
+  if (data && data.user && !data.session) {
+    signupMessage.textContent = 'Account created. Check your email to confirm before logging in.';
+  } else if (data && data.session) {
+    signupMessage.textContent = 'Account created and signed in.';
+  } else {
+    signupMessage.textContent = 'Signup submitted. Confirmation may be required.';
+  }
+});
+
+el('logout-btn').addEventListener('click', async () => {
+  await supabase.auth.signOut();
+});
+
+el('task-submit').addEventListener('click', async () => {
+  const title = el('task-title').value.trim();
+  const priority = el('task-priority').value;
+  if (!title) {
+    appError.textContent = 'Task title is required.';
+    return;
+  }
+  await createTask(title, priority);
+  el('task-title').value = '';
+});
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  if (session && session.user) {
+    renderSignedIn(session.user.email);
+    loadTasks();
+  } else {
+    renderSignedOut();
+    renderTasks([]);
+    clearSetupBlocker();
+  }
+});
+
+async function init() {
+  showLoading(true);
+  const { data } = await supabase.auth.getSession();
+  if (data && data.session && data.session.user) {
+    renderSignedIn(data.session.user.email);
+    await loadTasks();
+  } else {
+    renderSignedOut();
+  }
+  showLoading(false);
+}
+
+init();
+</script>
+</body>
+</html>
+<!--kenji-preview-sha:40bcfa2634d3f4b0-->
