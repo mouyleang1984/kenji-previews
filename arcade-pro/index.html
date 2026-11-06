@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arcade Pro</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;color:#fff;font-family:system-ui,sans-serif}
+.score{font-size:1.5rem;margin-bottom:.25rem;font-weight:bold}
+.high-score{font-size:1.1rem;margin-bottom:1rem;color:#f59e0b}
+canvas{border:2px solid #27272a;border-radius:8px;background:#18181b}
+.hint{margin-top:1rem;color:#71717a;font-size:.875rem}
+</style>
+</head>
+<body>
+<div class="score" data-testid="score">Score: 0</div>
+<div class="high-score" data-testid="high-score">High Score: 0</div>
+<canvas data-testid="canvas" width="400" height="600"></canvas>
+<div class="hint">Use arrow keys to dodge the falling blocks</div>
+<img data-testid="player-sprite" src="https://media.base44.com/images/public/6ad6e8fbffcd448e54fd8e67/fe6244f52_generated_image.png" style="display:none">
+<script>
+(function(){
+var canvas=document.querySelector('[data-testid="canvas"]');
+var ctx=canvas.getContext('2d');
+var scoreEl=document.querySelector('[data-testid="score"]');
+var highScoreEl=document.querySelector('[data-testid="high-score"]');
+var sprite=document.querySelector('[data-testid="player-sprite"]');
+var W=canvas.width,H=canvas.height;
+var HS_KEY='arcade_pro_high_score';
+var highScore=parseInt(localStorage.getItem(HS_KEY)||'0');
+highScoreEl.textContent='High Score: '+highScore;
+var player={x:W/2-20,y:H-60,w:40,h:40,speed:5};
+var blocks=[];var score=0;var gameOver=false;var keys={};
+document.addEventListener('keydown',function(e){keys[e.key]=true});
+document.addEventListener('keyup',function(e){keys[e.key]=false});
+function update(){
+if(gameOver)return;
+if(keys['ArrowLeft']||keys['a'])player.x=Math.max(0,player.x-player.speed);
+if(keys['ArrowRight']||keys['d'])player.x=Math.min(W-player.w,player.x+player.speed);
+if(Math.random()<0.03)blocks.push({x:Math.random()*(W-30),y:0,w:30,h:30,speed:1.5+Math.random()*2});
+for(var i=blocks.length-1;i>=0;i--){
+var b=blocks[i];b.y+=b.speed;
+if(b.y>H){blocks.splice(i,1);score+=5}
+else if(b.x<player.x+player.w&&b.x+b.w>player.x&&b.y<player.y+player.h&&b.y+b.h>player.y){gameOver=true}
+}
+score++;scoreEl.textContent='Score: '+score;
+if(score>highScore){highScore=score;highScoreEl.textContent='High Score: '+highScore;localStorage.setItem(HS_KEY,String(highScore))}
+}
+function draw(){
+ctx.fillStyle='#18181b';ctx.fillRect(0,0,W,H);
+if(sprite.complete&&sprite.naturalWidth>0){ctx.drawImage(sprite,player.x,player.y,player.w,player.h)}
+else{ctx.fillStyle='#22d3ee';ctx.fillRect(player.x,player.y,player.w,player.h)}
+ctx.fillStyle='#ef4444';
+for(var i=0;i<blocks.length;i++)ctx.fillRect(blocks[i].x,blocks[i].y,blocks[i].w,blocks[i].h);
+if(gameOver){
+ctx.fillStyle='#fff';ctx.font='30px system-ui';ctx.textAlign='center';
+ctx.fillText('Game Over',W/2,H/2);
+ctx.font='16px system-ui';ctx.fillText('Score: '+score,W/2,H/2+30);
+}
+}
+function loop(){update();draw();requestAnimationFrame(loop)}
+loop();
+})();
+</script>
+</body>
+</html>
+<!--kenji-preview-sha:46c54285b0c6f173-->
