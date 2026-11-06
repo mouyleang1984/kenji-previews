@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agency Operations</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:#0f172a}
+.nav{display:flex;gap:.5rem;padding:1rem;background:#1e293b;color:#fff;flex-wrap:wrap}
+.nav a{color:#cbd5e1;cursor:pointer;text-decoration:none;padding:.375rem .75rem;border-radius:6px}
+.nav a:hover{background:#334155;color:#fff}
+.nav a.active{background:#3b82f6;color:#fff}
+.view{padding:1.5rem;max-width:960px;margin:0 auto}
+.view h2{margin-bottom:1rem;font-size:1.5rem}
+.form{display:grid;gap:.5rem;margin-bottom:1.5rem;padding:1rem;background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.form input,.form select,.form textarea{padding:.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:1rem}
+.form button{padding:.5rem 1rem;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:1rem}
+.form button:hover{background:#2563eb}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+th,td{padding:.625rem;text-align:left;border-bottom:1px solid #e2e8f0}
+th{background:#f1f5f9;font-size:.875rem;text-transform:uppercase}
+td{font-size:.95rem}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem}
+.stat-card{background:#fff;padding:1.5rem;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.stat-card h3{font-size:.875rem;text-transform:uppercase;color:#64748b;margin-bottom:.5rem}
+.stat-card .num{font-size:2rem;font-weight:700}
+.empty{color:#94a3b8;font-style:italic;padding:1rem}
+button[data-testid$="-delete"]{padding:.25rem .5rem;font-size:.75rem;background:#ef4444;color:#fff;border:none;border-radius:4px;cursor:pointer}
+@media(max-width:640px){.view{padding:1rem}.nav{font-size:.875rem}.nav a{padding:.25rem .5rem}}
+</style>
+</head>
+<body>
+<div id="app" data-testid="app"></div>
+<script>
+(function(A){
+  A.utils=A.utils||{};
+  A.utils.dom={
+    el:function(html){var d=document.createElement('div');d.innerHTML=html;return d.firstElementChild;},
+    clear:function(node){while(node.firstChild)node.removeChild(node.firstChild);},
+    on:function(node,evt,fn){node.addEventListener(evt,fn);}
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  A.utils=A.utils||{};
+  A.utils.format={
+    date:function(d){if(!d)return '';var dt=new Date(d);return isNaN(dt)?'':dt.toLocaleDateString();},
+    money:function(n){return '$'+(Number(n||0)).toFixed(2);},
+    truncate:function(s,n){s=String(s||'');return s.length>n?s.slice(0,n)+'...':s;}
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  A.utils=A.utils||{};
+  A.utils.validate={
+    required:function(val){return val!=null&&String(val).trim()!=='';},
+    email:function(val){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(val||''));},
+    positive:function(val){return Number(val)>=0;}
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  var KEY='agency_ops_db';
+  A.db={
+    load:function(){try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(e){return{};}},
+    save:function(data){try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){}},
+    key:KEY
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  var db=A.db;
+  var ENTITIES=['clients','projects','tasks','notes','expenses'];
+  function read(){var data=db.load();ENTITIES.forEach(function(e){if(!Array.isArray(data[e]))data[e]=[];});return data;}
+  function write(data){db.save(data);}
+  A.store={
+    list:function(entity){return read()[entity]||[];},
+    get:function(entity,id){var items=read()[entity]||[];for(var i=0;i<items.length;i++){if(items[i].id===id)return items[i];}return null;},
+    create:function(entity,rec){var data=read();rec.id=Date.now()+'-'+Math.random().toString(36).slice(2,8);rec.created_at=new Date().toISOString();data[entity].push(rec);write(data);return rec;},
+    update:function(entity,id,patch){var data=read();for(var i=0;i<data[entity].length;i++){if(data[entity][i].id===id){Object.assign(data[entity][i],patch);write(data);return data[entity][i];}}return null;},
+    remove:function(entity,id){var data=read();data[entity]=data[entity].filter(function(r){return r.id!==id;});write(data);},
+    byClient:function(entity,cid){return A.store.list(entity).filter(function(r){return r.client_id===cid;});},
+    byProject:function(entity,pid){return A.store.list(entity).filter(function(r){return r.project_id===pid;});},
+    count:function(entity){return A.store.list(entity).length;}
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  A.router={
+    routes:{},
+    on:function(path,fn){A.router.routes[path]=fn;},
+    go:function(path){window.location.hash='#'+path;},
+    current:function(){return window.location.hash.replace(/^#/,'')||'/';},
+    dispatch:function(){var path=A.router.current();var fn=A.router.routes[path]||A.router.routes['/']||function(){};fn(path);},
+    init:function(){window.addEventListener('hashchange',A.router.dispatch);A.router.dispatch();}
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  A.models=A.models||{};
+  A.models.client={
+    fields:['name','email','company','phone'],
+    create:function(d){return{name:d.name||'',email:d.email||'',company:d.company||'',phone:d.phone||''};}
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  A.models=A.models||{};
+  A.models.project={
+    fields:['title','client_id','status','budget'],
+    create:function(d){return{title:d.title||'',client_id:d.client_id||'',status:d.status||'active',budget:Number(d.budget)||0};}
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  A.models=A.models||{};
+  A.models.task={
+    fields:['title','project_id','status','due_date'],
+    create:function(d){return{title:d.title||'',project_id:d.project_id||'',status:d.status||'pending',due_date:d.due_date||''};}
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  A.models=A.models||{};
+  A.models.note={
+    fields:['body','project_id'],
+    create:function(d){return{body:d.body||'',project_id:d.project_id||''};}
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  A.models=A.models||{};
+  A.models.expense={
+    fields:['description','project_id','amount','date'],
+    create:function(d){return{description:d.description||'',project_id:d.project_id||'',amount:Number(d.amount)||0,date:d.date||''};}
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  var dom=A.utils.dom;
+  A.views=A.views||{};
+  A.views.layout={
+    render:function(){
+      var html='<nav class="nav" data-testid="nav">';
+      html+='<a data-testid="nav-dashboard" href="#/">Dashboard</a>';
+      html+='<a data-testid="nav-clients" href="#/clients">Clients</a>';
+      html+='<a data-testid="nav-projects" href="#/projects">Projects</a>';
+      html+='<a data-testid="nav-tasks" href="#/tasks">Tasks</a>';
+      html+='<a data-testid="nav-notes" href="#/notes">Notes</a>';
+      html+='<a data-testid="nav-expenses" href="#/expenses">Expenses</a>';
+      html+='</nav><div id="content" data-testid="content"></div>';
+      var app=document.getElementById('app');
+      dom.clear(app);
+      app.innerHTML=html;
+    },
+    setActive:function(path){
+      var links=document.querySelectorAll('.nav a');
+      for(var i=0;i<links.length;i++){links[i].className=(links[i].getAttribute('href')==='#'+path)?'active':'';}
+    }
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  var store=A.store;var dom=A.utils.dom;var fmt=A.utils.format;
+  A.views=A.views||{};
+  A.views.dashboard={
+    render:function(){
+      var c=document.getElementById('content');dom.clear(c);
+      var html='<div class="view" data-testid="dashboard"><h2>Dashboard</h2><div class="stat-grid">';
+      html+='<div class="stat-card"><h3>Clients</h3><div class="num">'+store.count('clients')+'</div></div>';
+      html+='<div class="stat-card"><h3>Projects</h3><div class="num">'+store.count('projects')+'</div></div>';
+      html+='<div class="stat-card"><h3>Tasks</h3><div class="num">'+store.count('tasks')+'</div></div>';
+      html+='<div class="stat-card"><h3>Notes</h3><div class="num">'+store.count('notes')+'</div></div>';
+      html+='<div class="stat-card"><h3>Expenses</h3><div class="num">'+store.count('expenses')+'</div></div>';
+      var total=0;store.list('expenses').forEach(function(e){total+=Number(e.amount)||0;});
+      html+='</div><div class="stat-card"><h3>Total Expenses</h3><div class="num">'+fmt.money(total)+'</div></div></div>';
+      c.innerHTML=html;
+    }
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  var store=A.store;var dom=A.utils.dom;
+  A.views=A.views||{};
+  A.views.clients={
+    render:function(){
+      var c=document.getElementById('content');dom.clear(c);
+      var html='<div class="view" data-testid="clients-view"><h2>Clients</h2>';
+      html+='<form class="form" data-testid="client-form" id="client-form">';
+      html+='<input data-testid="client-name" name="name" placeholder="Name" required>';
+      html+='<input data-testid="client-email" name="email" placeholder="Email">';
+      html+='<input data-testid="client-company" name="company" placeholder="Company">';
+      html+='<input data-testid="client-phone" name="phone" placeholder="Phone">';
+      html+='<button data-testid="client-submit" type="submit">Add Client</button></form>';
+      var clients=store.list('clients');
+      html+='<table data-testid="clients-table"><thead><tr><th>Name</th><th>Email</th><th>Company</th><th>Actions</th></tr></thead><tbody>';
+      if(!clients.length)html+='<tr><td colspan="4" class="empty">No clients yet</td></tr>';
+      clients.forEach(function(cl){
+        html+='<tr data-testid="client-row" data-id="'+cl.id+'"><td>'+cl.name+'</td><td>'+(cl.email||'')+'</td><td>'+(cl.company||'')+'</td>';
+        html+='<td><button data-testid="client-delete" data-id="'+cl.id+'">Delete</button></td></tr>';
+      });
+      html+='</tbody></table></div>';
+      c.innerHTML=html;
+      var form=document.getElementById('client-form');
+      dom.on(form,'submit',function(e){
+        e.preventDefault();
+        var data={};A.models.client.fields.forEach(function(f){data[f]=form.querySelector('[name="'+f+'"]').value;});
+        if(!A.utils.validate.required(data.name))return;
+        store.create('clients',A.models.client.create(data));
+        A.views.clients.render();
+      });
+      var dels=c.querySelectorAll('[data-testid="client-delete"]');
+      for(var i=0;i<dels.length;i++)dom.on(dels[i],'click',function(ev){store.remove('clients',ev.target.getAttribute('data-id'));A.views.clients.render();});
+    }
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  var store=A.store;var dom=A.utils.dom;var fmt=A.utils.format;
+  A.views=A.views||{};
+  A.views.projects={
+    render:function(){
+      var c=document.getElementById('content');dom.clear(c);
+      var clients=store.list('clients');
+      var html='<div class="view" data-testid="projects-view"><h2>Projects</h2>';
+      html+='<form class="form" data-testid="project-form" id="project-form">';
+      html+='<input data-testid="project-title" name="title" placeholder="Title" required>';
+      html+='<select data-testid="project-client" name="client_id"><option value="">Select client</option>';
+      clients.forEach(function(cl){html+='<option value="'+cl.id+'">'+cl.name+'</option>';});
+      html+='</select><select data-testid="project-status" name="status">';
+      html+='<option value="active">Active</option><option value="done">Done</option><option value="paused">Paused</option></select>';
+      html+='<input data-testid="project-budget" name="budget" type="number" step="0.01" placeholder="Budget">';
+      html+='<button data-testid="project-submit" type="submit">Add Project</button></form>';
+      var projects=store.list('projects');
+      html+='<table data-testid="projects-table"><thead><tr><th>Title</th><th>Client</th><th>Status</th><th>Budget</th><th>Actions</th></tr></thead><tbody>';
+      if(!projects.length)html+='<tr><td colspan="5" class="empty">No projects yet</td></tr>';
+      projects.forEach(function(p){
+        var cli=store.get('clients',p.client_id);
+        html+='<tr data-testid="project-row" data-id="'+p.id+'"><td>'+p.title+'</td><td>'+(cli?cli.name:'—')+'</td><td>'+p.status+'</td><td>'+fmt.money(p.budget)+'</td>';
+        html+='<td><button data-testid="project-delete" data-id="'+p.id+'">Delete</button></td></tr>';
+      });
+      html+='</tbody></table></div>';
+      c.innerHTML=html;
+      var form=document.getElementById('project-form');
+      dom.on(form,'submit',function(e){
+        e.preventDefault();
+        var data={};A.models.project.fields.forEach(function(f){var el=form.querySelector('[name="'+f+'"]');data[f]=el?el.value:'';});
+        if(!A.utils.validate.required(data.title))return;
+        store.create('projects',A.models.project.create(data));
+        A.views.projects.render();
+      });
+      var dels=c.querySelectorAll('[data-testid="project-delete"]');
+      for(var i=0;i<dels.length;i++)dom.on(dels[i],'click',function(ev){store.remove('projects',ev.target.getAttribute('data-id'));A.views.projects.render();});
+    }
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  var store=A.store;var dom=A.utils.dom;var fmt=A.utils.format;
+  A.views=A.views||{};
+  A.views.tasks={
+    render:function(){
+      var c=document.getElementById('content');dom.clear(c);
+      var projects=store.list('projects');
+      var html='<div class="view" data-testid="tasks-view"><h2>Tasks</h2>';
+      html+='<form class="form" data-testid="task-form" id="task-form">';
+      html+='<input data-testid="task-title" name="title" placeholder="Title" required>';
+      html+='<select data-testid="task-project" name="project_id"><option value="">Select project</option>';
+      projects.forEach(function(p){html+='<option value="'+p.id+'">'+p.title+'</option>';});
+      html+='</select><select data-testid="task-status" name="status">';
+      html+='<option value="pending">Pending</option><option value="in_progress">In Progress</option><option value="done">Done</option></select>';
+      html+='<input data-testid="task-due" name="due_date" type="date">';
+      html+='<button data-testid="task-submit" type="submit">Add Task</button></form>';
+      var tasks=store.list('tasks');
+      html+='<table data-testid="tasks-table"><thead><tr><th>Title</th><th>Project</th><th>Status</th><th>Due</th><th>Actions</th></tr></thead><tbody>';
+      if(!tasks.length)html+='<tr><td colspan="5" class="empty">No tasks yet</td></tr>';
+      tasks.forEach(function(t){
+        var pr=store.get('projects',t.project_id);
+        html+='<tr data-testid="task-row" data-id="'+t.id+'"><td>'+t.title+'</td><td>'+(pr?pr.title:'—')+'</td><td>'+t.status+'</td><td>'+fmt.date(t.due_date)+'</td>';
+        html+='<td><button data-testid="task-delete" data-id="'+t.id+'">Delete</button></td></tr>';
+      });
+      html+='</tbody></table></div>';
+      c.innerHTML=html;
+      var form=document.getElementById('task-form');
+      dom.on(form,'submit',function(e){
+        e.preventDefault();
+        var data={};A.models.task.fields.forEach(function(f){var el=form.querySelector('[name="'+f+'"]');data[f]=el?el.value:'';});
+        if(!A.utils.validate.required(data.title))return;
+        store.create('tasks',A.models.task.create(data));
+        A.views.tasks.render();
+      });
+      var dels=c.querySelectorAll('[data-testid="task-delete"]');
+      for(var i=0;i<dels.length;i++)dom.on(dels[i],'click',function(ev){store.remove('tasks',ev.target.getAttribute('data-id'));A.views.tasks.render();});
+    }
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  var store=A.store;var dom=A.utils.dom;var fmt=A.utils.format;
+  A.views=A.views||{};
+  A.views.notes={
+    render:function(){
+      var c=document.getElementById('content');dom.clear(c);
+      var projects=store.list('projects');
+      var html='<div class="view" data-testid="notes-view"><h2>Notes</h2>';
+      html+='<form class="form" data-testid="note-form" id="note-form">';
+      html+='<textarea data-testid="note-body" name="body" placeholder="Note text" required></textarea>';
+      html+='<select data-testid="note-project" name="project_id"><option value="">Select project</option>';
+      projects.forEach(function(p){html+='<option value="'+p.id+'">'+p.title+'</option>';});
+      html+='</select><button data-testid="note-submit" type="submit">Add Note</button></form>';
+      var notes=store.list('notes');
+      html+='<div data-testid="notes-list">';
+      if(!notes.length)html+='<p class="empty">No notes yet</p>';
+      notes.forEach(function(n){
+        var pr=store.get('projects',n.project_id);
+        html+='<div class="stat-card" data-testid="note-row" data-id="'+n.id+'" style="margin-bottom:.5rem">';
+        html+='<p style="font-weight:600">'+(pr?pr.title:'—')+'</p>';
+        html+='<p>'+fmt.truncate(n.body,200)+'</p>';
+        html+='<button data-testid="note-delete" data-id="'+n.id+'">Delete</button></div>';
+      });
+      html+='</div></div>';
+      c.innerHTML=html;
+      var form=document.getElementById('note-form');
+      dom.on(form,'submit',function(e){
+        e.preventDefault();
+        var data={};A.models.note.fields.forEach(function(f){var el=form.querySelector('[name="'+f+'"]');data[f]=el?el.value:'';});
+        if(!A.utils.validate.required(data.body))return;
+        store.create('notes',A.models.note.create(data));
+        A.views.notes.render();
+      });
+      var dels=c.querySelectorAll('[data-testid="note-delete"]');
+      for(var i=0;i<dels.length;i++)dom.on(dels[i],'click',function(ev){store.remove('notes',ev.target.getAttribute('data-id'));A.views.notes.render();});
+    }
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  var store=A.store;var dom=A.utils.dom;var fmt=A.utils.format;
+  A.views=A.views||{};
+  A.views.expenses={
+    render:function(){
+      var c=document.getElementById('content');dom.clear(c);
+      var projects=store.list('projects');
+      var html='<div class="view" data-testid="expenses-view"><h2>Expenses</h2>';
+      html+='<form class="form" data-testid="expense-form" id="expense-form">';
+      html+='<input data-testid="expense-desc" name="description" placeholder="Description" required>';
+      html+='<select data-testid="expense-project" name="project_id"><option value="">Select project</option>';
+      projects.forEach(function(p){html+='<option value="'+p.id+'">'+p.title+'</option>';});
+      html+='</select><input data-testid="expense-amount" name="amount" type="number" step="0.01" placeholder="Amount" required>';
+      html+='<input data-testid="expense-date" name="date" type="date">';
+      html+='<button data-testid="expense-submit" type="submit">Add Expense</button></form>';
+      var expenses=store.list('expenses');var total=0;
+      html+='<table data-testid="expenses-table"><thead><tr><th>Description</th><th>Project</th><th>Amount</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
+      if(!expenses.length)html+='<tr><td colspan="5" class="empty">No expenses yet</td></tr>';
+      expenses.forEach(function(x){
+        var pr=store.get('projects',x.project_id);total+=Number(x.amount)||0;
+        html+='<tr data-testid="expense-row" data-id="'+x.id+'"><td>'+x.description+'</td><td>'+(pr?pr.title:'—')+'</td><td>'+fmt.money(x.amount)+'</td><td>'+fmt.date(x.date)+'</td>';
+        html+='<td><button data-testid="expense-delete" data-id="'+x.id+'">Delete</button></td></tr>';
+      });
+      html+='</tbody></table>';
+      html+='<div class="stat-card" style="margin-top:1rem"><h3>Total</h3><div class="num">'+fmt.money(total)+'</div></div></div>';
+      c.innerHTML=html;
+      var form=document.getElementById('expense-form');
+      dom.on(form,'submit',function(e){
+        e.preventDefault();
+        var data={};A.models.expense.fields.forEach(function(f){var el=form.querySelector('[name="'+f+'"]');data[f]=el?el.value:'';});
+        if(!A.utils.validate.required(data.description))return;
+        store.create('expenses',A.models.expense.create(data));
+        A.views.expenses.render();
+      });
+      var dels=c.querySelectorAll('[data-testid="expense-delete"]');
+      for(var i=0;i<dels.length;i++)dom.on(dels[i],'click',function(ev){store.remove('expenses',ev.target.getAttribute('data-id'));A.views.expenses.render();});
+    }
+  };
+})(window.App=window.App||{});
+</script>
+<script>
+(function(A){
+  A.router.on('/',function(){A.views.layout.setActive('/');A.views.dashboard.render();});
+  A.router.on('/clients',function(){A.views.layout.setActive('/clients');A.views.clients.render();});
+  A.router.on('/projects',function(){A.views.layout.setActive('/projects');A.views.projects.render();});
+  A.router.on('/tasks',function(){A.views.layout.setActive('/tasks');A.views.tasks.render();});
+  A.router.on('/notes',function(){A.views.layout.setActive('/notes');A.views.notes.render();});
+  A.router.on('/expenses',function(){A.views.layout.setActive('/expenses');A.views.expenses.render();});
+  A.init=function(){A.views.layout.render();A.router.init();};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',A.init);
+  else A.init();
+})(window.App=window.App||{});
+</script>
+</body>
+</html>
+<!--kenji-preview-sha:1c862b03e9644d96-->
