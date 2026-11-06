@@ -113,17 +113,26 @@ while(list.firstChild)list.removeChild(list.firstChild);
 tasks.forEach(function(task){
 var row=document.createElement('div');
 row.className='task-row';row.setAttribute('data-testid','task-row');row.setAttribute('data-task-id',task.id);
+var cb=document.createElement('input');
+cb.type='checkbox';
+cb.setAttribute('data-testid','task-done-toggle');
+cb.checked=!!task.done;
+cb.addEventListener('click',function(){
+var ts=getTasks(em);var t2=ts.find(function(t){return t.id===task.id});
+if(t2){t2.done=!t2.done;saveTasks(em,ts);renderTasks();}
+});
 var sp=document.createElement('span');sp.textContent=task.text;
+if(task.done){sp.style.textDecoration='line-through';}
 var del=document.createElement('button');del.textContent='Delete';del.setAttribute('data-testid','task-delete');
 del.addEventListener('click',function(){
 var ts=getTasks(em);ts=ts.filter(function(t){return t.id!==task.id});
 saveTasks(em,ts);renderTasks();
 });
-row.appendChild(sp);row.appendChild(del);list.appendChild(row);
+row.appendChild(cb);row.appendChild(sp);row.appendChild(del);list.appendChild(row);
 });
 }
 })();
 </script>
 </body>
 </html>
-<!--kenji-preview-sha:31dd4c691b7f8078-->
+<!--kenji-preview-sha:2754155379087316-->
