@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Orbit Runner</title>
+<link rel="manifest" href="manifest.json">
+<style>
+body{margin:0;padding:0;overflow:hidden;background:#0a0a1a;font-family:system-ui}
+canvas{display:block;position:absolute;top:0;left:0}
+#score-display,#best-display{position:absolute;top:10px;color:#fff;font-size:18px;z-index:10}
+#score-display{left:10px}
+#best-display{right:10px}
+#start-screen,#game-over{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;background:rgba(0,0,0,0.7);z-index:20}
+.hidden{display:none}
+button{font-size:16px;height:44px;padding:0 20px;margin:10px;border:none;border-radius:6px;background:#4a90d9;color:#fff;cursor:pointer}
+h1{margin:10px}
+p{margin:5px}
+</style>
+</head>
+<body>
+<canvas id="game" data-testid="game-canvas"></canvas>
+<div id="score-display" data-testid="score-display">Score: 0</div>
+<div id="best-display" data-testid="best-display" data-record-id="">Best: 0</div>
+<div id="start-screen" data-testid="start-screen"><h1>Orbit Runner</h1><p>Press Space or Tap to Start</p></div>
+<div id="game-over" data-testid="game-over" class="hidden"><h1>Game Over</h1><p id="final-score" data-testid="final-score">Score: 0</p><p id="final-best" data-testid="final-best">Best: 0</p><button id="restart-btn" data-testid="restart-btn">Restart</button></div>
+<script>
+var canvas=document.getElementById('game');
+var ctx=canvas.getContext('2d');
+var W,H,cx,cy;
+function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;cx=W/2;cy=H/2;}
+resize();window.addEventListener('resize',resize);
+var state='idle',score=0,bestScore=parseInt(localStorage.getItem('orbit-runner-best')||'0',10);
+var ship={angle:0,radius:100,speed:0.02};
+var asteroids=[],lastTime=0,scoreTimer=0;
+window.gameState={score:0,bestScore:bestScore,status:'idle'};
+window.testForceGameOver=false;
+window.endGame=endGame;window.startGame=startGame;
+document.getElementById('best-display').textContent='Best: '+bestScore;
+document.getElementById('best-display').dataset.recordId='best-'+bestScore;
+function spawnAsteroid(){
+  var side=Math.floor(Math.random()*4),x,y;
+  if(side===0){x=Math.random()*W;y=-20;}
+  else if(side===1){x=W+20;y=Math.random()*H;}
+  else if(side===2){x=Math.random()*W;y=H+20;}
+  else{x=-20;y=Math.random()*H;}
+  var dx=cx-x,dy=cy-y,dist=Math.sqrt(dx*dx+dy*dy),speed=1+Math.random()*1.5;
+  asteroids.push({x:x,y:y,vx:(dx/dist)*speed,vy:(dy/dist)*speed,r:8+Math.random()*8});
+}
+function startGame(){
+  if(state!=='idle')return;
+  state='playing';score=0;asteroids=[];ship={angle:0,radius:100,speed:0.02};scoreTimer=0;lastTime=performance.now();
+  window.gameState={score:0,bestScore:bestScore,status:'playing'};
+  document.getElementById('start-screen').classList.add('hidden');
+  document.getElementById('game-over').classList.add('hidden');
+  document.getElementById('score-display').textContent='Score: 0';
+  requestAnimationFrame(gameLoop);
+}
+function endGame(){
+  if(state==='gameover')return;
+  state='gameover';
+  if(score>bestScore){bestScore=score;localStorage.setItem('orbit-runner-best',String(bestScore));}
+  window.gameState={score:score,bestScore:bestScore,status:'gameover'};
+  document.getElementById('final-score').textContent='Score: '+score;
+  document.getElementById('final-best').textContent='Best: '+bestScore;
+  document.getElementById('best-display').textContent='Best: '+bestScore;
+  document.getElementById('best-display').dataset.recordId='best-'+bestScore;
+  document.getElementById('game-over').classList.remove('hidden');
+}
+function gameLoop(now){
+  if(state!=='playing')return;
+  var dt=now-lastTime;lastTime=now;
+  ship.angle+=ship.speed;
+  var sx=cx+Math.cos(ship.angle)*ship.radius,sy=cy+Math.sin(ship.angle)*ship.radius;
+  scoreTimer+=dt;
+  if(scoreTimer>=100){score+=1;scoreTimer-=100;window.gameState.score=score;document.getElementById('score-display').textContent='Score: '+score;}
+  if(Math.random()<0.02)spawnAsteroid();
+  for(var i=asteroids.length-1;i>=0;i--){
+    var a=asteroids[i];a.x+=a.vx;a.y+=a.vy;
+    var dx=a.x-sx,dy=a.y-sy;
+    if(Math.sqrt(dx*dx+dy*dy)<a.r+10){endGame();return;}
+    if(a.x<-50||a.x>W+50||a.y<-50||a.y>H+50)asteroids.splice(i,1);
+  }
+  if(window.testForceGameOver===true){window.testForceGameOver=false;endGame();return;}
+  ctx.fillStyle='#0a0a1a';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#4a90d9';ctx.beginPath();ctx.arc(cx,cy,30,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#ffdd44';ctx.beginPath();ctx.arc(sx,sy,10,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#aa4444';
+  for(var j=0;j<asteroids.length;j++){ctx.beginPath();ctx.arc(asteroids[j].x,asteroids[j].y,asteroids[j].r,0,Math.PI*2);ctx.fill();}
+  requestAnimationFrame(gameLoop);
+}
+document.addEventListener('keydown',function(e){
+  if(e.key===' '||e.key==='Enter'){if(state==='idle')startGame();e.preventDefault();}
+  if(e.key==='ArrowUp'||e.key==='w'||e.key==='W'){if(state==='playing')ship.radius=Math.min(ship.radius+10,200);}
+  if(e.key==='ArrowDown'||e.key==='s'||e.key==='S'){if(state==='playing')ship.radius=Math.max(ship.radius-10,40);}
+});
+document.getElementById('start-screen').addEventListener('click',function(){if(state==='idle')startGame();});
+canvas.addEventListener('touchstart',function(e){if(state==='idle')startGame();e.preventDefault();},false);
+document.getElementById('restart-btn').addEventListener('click',function(){
+  state='idle';document.getElementById('game-over').classList.add('hidden');
+  document.getElementById('start-screen').classList.remove('hidden');
+  window.gameState={score:0,bestScore:bestScore,status:'idle'};window.testForceGameOver=false;
+});
+ctx.fillStyle='#0a0a1a';ctx.fillRect(0,0,W,H);
+ctx.fillStyle='#4a90d9';ctx.beginPath();ctx.arc(cx,cy,30,0,Math.PI*2);ctx.fill();
+</script>
+</body>
+</html>
+<!--kenji-preview-sha:b0dbce9d85e1c105-->
