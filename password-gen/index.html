@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Password Generator</title>
+<link rel="manifest" href="manifest.json">
+<style>
+*{box-sizing:border-box}html,body{max-width:100%;overflow-x:hidden;margin:0;padding:0}img{max-width:100%;height:auto}
+body{min-height:100vh;display:flex;flex-direction:column;align-items:center;background:#0f0f0f;color:#fff;font-family:system-ui;padding:20px}
+.card{background:#1a1a1a;border-radius:12px;padding:24px;width:100%;max-width:380px;margin:20px}
+label{display:block;margin:10px 0 4px;font-size:14px}
+input[type=range]{width:100%;min-height:40px}
+#length-val{font-weight:700;color:#f59e0b}
+#pwd{font-size:20px;font-family:monospace;word-break:break-all;background:#0f0f0f;padding:12px;border-radius:8px;min-height:48px;margin:12px 0}
+button{width:100%;height:48px;font-size:18px;border:none;border-radius:8px;background:#f59e0b;color:#0f0f0f;cursor:pointer;font-weight:700}
+</style>
+</head><body>
+<div class="card">
+<h1 data-testid="title">Password Generator</h1>
+<label>Length: <span id="length-val" data-testid="length-val">16</span></label>
+<input id="length" data-testid="length-input" type="range" min="8" max="32" value="16">
+<button id="gen-btn" data-testid="gen-btn">Generate</button>
+<div id="pwd" data-testid="pwd-display" data-record-id="">Click generate</div>
+</div>
+<script>
+var CHARS='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*';
+var lenInput=document.getElementById('length'),lenVal=document.getElementById('length-val'),pwdEl=document.getElementById('pwd');
+window.appState={password:'',length:16};
+window.genPwd=function(){var n=parseInt(lenInput.value,10)||16;var p='';for(var i=0;i<n;i++)p+=CHARS[Math.floor(Math.random()*CHARS.length)];pwdEl.textContent=p;pwdEl.dataset.recordId='pwd-'+p.length;localStorage.setItem('pwd-last',p);window.appState.password=p;window.appState.length=n;lenVal.textContent=n;};
+lenInput.addEventListener('input',function(){lenVal.textContent=lenInput.value;});
+document.getElementById('gen-btn').addEventListener('click',window.genPwd);
+var last=localStorage.getItem('pwd-last');if(last){pwdEl.textContent='Last: '+last.slice(0,8)+'...';pwdEl.dataset.recordId='pwd-'+last.length;}
+</script>
+</body></html>
+<!--kenji-preview-sha:7e71bd8952f11ed6-->
