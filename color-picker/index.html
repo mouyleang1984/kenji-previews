@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Color Picker</title>
+<link rel="manifest" href="manifest.json">
+<style>
+*{box-sizing:border-box}html,body{max-width:100%;overflow-x:hidden;margin:0;padding:0}img{max-width:100%;height:auto}
+body{min-height:100vh;display:flex;flex-direction:column;align-items:center;background:#18181b;color:#fff;font-family:system-ui;padding:20px}
+.card{background:#27272a;border-radius:12px;padding:24px;width:100%;max-width:380px;margin:20px;text-align:center}
+#swatch{width:100%;height:120px;border-radius:8px;margin:12px 0;background:#3b82f6}
+input[type=color]{width:100%;height:48px;border:none;border-radius:8px;cursor:pointer;background:none}
+#hex{font-size:24px;font-family:monospace;font-weight:700;margin:8px}
+#rgb{font-size:16px;color:#a1a1aa;margin:4px}
+</style>
+</head><body>
+<div class="card">
+<h1 data-testid="title">Color Picker</h1>
+<div id="swatch" data-testid="swatch"></div>
+<input id="picker" data-testid="color-input" type="color" value="#3b82f6">
+<div id="hex" data-testid="hex-display">#3B82F6</div>
+<div id="rgb" data-testid="rgb-display">rgb(59,130,246)</div>
+<div id="saved" data-testid="saved-display" data-record-id="">No saved color</div>
+</div>
+<script>
+var picker=document.getElementById('picker'),swatch=document.getElementById('swatch'),hexEl=document.getElementById('hex'),rgbEl=document.getElementById('rgb'),savedEl=document.getElementById('saved');
+window.appState={hex:'#3b82f6',r:59,g:130,b:246};
+function hexToRgb(h){h=h.replace('#','');return {r:parseInt(h.slice(0,2),16),g:parseInt(h.slice(2,4),16),b:parseInt(h.slice(4,6),16)};}
+window.pickColor=function(){var v=picker.value;var rgb=hexToRgb(v);swatch.style.background=v;hexEl.textContent=v.toUpperCase();rgbEl.textContent='rgb('+rgb.r+','+rgb.g+','+rgb.b+')';window.appState={hex:v,r:rgb.r,g:rgb.g,b:rgb.b};localStorage.setItem('color-last',v);savedEl.textContent='Last: '+v.toUpperCase();savedEl.dataset.recordId='color-'+v.replace('#','');};
+picker.addEventListener('input',window.pickColor);
+var last=localStorage.getItem('color-last');if(last){picker.value=last;window.pickColor();}
+</script>
+</body></html>
+<!--kenji-preview-sha:821052c24bcdb128-->
