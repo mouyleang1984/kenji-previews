@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Dice Roller</title>
+<link rel="manifest" href="manifest.json">
+<style>
+*{box-sizing:border-box}html,body{max-width:100%;overflow-x:hidden;margin:0;padding:0}img{max-width:100%;height:auto}
+body{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0f172a;color:#fff;font-family:system-ui}
+#face{font-size:96px;margin:16px}
+button{font-size:18px;height:48px;padding:0 28px;border:none;border-radius:8px;background:#3b82f6;color:#fff;cursor:pointer}
+#rolls{font-size:16px;color:#94a3b8;margin:12px}
+</style>
+</head><body>
+<h1 data-testid="title">Dice Roller</h1>
+<div id="face" data-testid="face-display">⚀</div>
+<button id="roll-btn" data-testid="roll-btn">Roll</button>
+<div id="rolls" data-testid="rolls-display" data-record-id="">Total rolls: 0</div>
+<script>
+var rolls=parseInt(localStorage.getItem('dice-rolls')||'0',10),face=document.getElementById('face'),rollsEl=document.getElementById('rolls');
+var FACES=['⚀','⚁','⚂','⚃','⚄','⚅'];
+window.appState={value:1,rolls:rolls};
+window.rollDice=function(){var v=Math.floor(Math.random()*6)+1;face.textContent=FACES[v-1];rolls++;localStorage.setItem('dice-rolls',String(rolls));rollsEl.textContent='Total rolls: '+rolls;rollsEl.dataset.recordId='rolls-'+rolls;window.appState.value=v;window.appState.rolls=rolls;};
+document.getElementById('roll-btn').addEventListener('click',window.rollDice);
+rollsEl.textContent='Total rolls: '+rolls;rollsEl.dataset.recordId='rolls-'+rolls;
+</script>
+</body></html>
+<!--kenji-preview-sha:bafa73eab8b69c98-->
