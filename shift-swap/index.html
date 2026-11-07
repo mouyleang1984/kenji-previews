@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Shift Swap</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{--primary:#2f6f4f;--bg:#f6faf7}
+body{font-family:system-ui;background:var(--bg);margin:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);font-size:16px}
+input,button{font-size:16px;height:44px;width:100%;box-sizing:border-box;margin:8px 0;padding:0 12px;border:1px solid #ccc;border-radius:6px}
+.container{max-width:600px;margin:0 auto;padding:20px}
+#auth-card,#app-card{padding:20px;background:white;border-radius:12px}
+.hidden{display:none}
+li{padding:12px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}
+button{cursor:pointer;background:var(--primary);color:white;border:none}
+*{box-sizing:border-box}body{min-height:100dvh}.container{width:100%;min-width:0}li,p{overflow-wrap:anywhere}ul{padding-left:0;min-width:0}input{min-width:0;max-width:100%}
+</style>
+</head>
+<body>
+<div class="container">
+<div id="auth-card" data-testid="auth-card"><p data-testid="auth-error" role="alert"></p><p data-testid="auth-status" role="status"></p><h1>Shift Swap</h1><input data-testid="auth-email" type="email" placeholder="Email"><input data-testid="auth-password" type="password" placeholder="Password"><button data-testid="btn-signup" onclick="auth.signUp()">Sign Up</button><button data-testid="btn-login" onclick="auth.login()">Login</button></div>
+<div id="app-card" data-testid="app-card" class="hidden"><p data-testid="app-error" role="alert"></p><p data-testid="app-status" role="status"></p><button data-testid="logout" id="logout-btn" onclick="auth.logout()">Logout</button><h2>Post a Shift</h2><input data-testid="shift-date" type="date"><input data-testid="shift-hours" type="number" placeholder="Hours"><button data-testid="shift-post-btn" onclick="app.postShift()">Post Shift</button><h2>My Shifts</h2><ul data-testid="my-shifts"></ul><h2>Open Shifts</h2><ul data-testid="open-shifts"></ul></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const db=window.supabase.createClient('https://ohcyjurhonzdvkqoellw.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oY3lqdXJob256ZHZrcW9lbGx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM5ODk1MzAsImV4cCI6MjEwOTU2NTUzMH0.vRWDn0qZI3-B2UW3m6r1OHohjjX5qVyqwkcc314iYwM',{auth:{persistSession:true,autoRefreshToken:true}});
+const $=id=>document.querySelector('[data-testid="'+id+'"]');
+let currentUser=null,authVersion=0,loadVersion=0,restoring=null;
+function fail(error,target='app-error'){const detail=[error.code,error.message||String(error),error.details,error.hint].filter(Boolean).join(': ');$(target).textContent=detail;console.error('Shift Swap: '+detail);}
+function status(text){$('app-status').textContent=text;}
+function clearLists(){for(const id of ['my-shifts','open-shifts'])$(id).replaceChildren();}
+const app={
+  load:async()=>{
+    if(!currentUser)throw new Error('Sign in before loading shifts.');
+    const owner=currentUser.id,version=++loadVersion;
+    const [my,open]=await Promise.all([
+      db.from('shift_swaps').select('id,owner_id,owner_email,shift_date,hours,status,claimed_by_email').eq('owner_id',owner).order('created_at',{ascending:true}),
+      db.from('shift_swaps').select('id,owner_id,owner_email,shift_date,hours').eq('status','open').is('claimed_by',null).order('created_at',{ascending:true})
+    ]);
+    if(my.error)throw my.error;if(open.error)throw open.error;
+    if(currentUser?.id!==owner||version!==loadVersion)return;
+    $('my-shifts').replaceChildren(...(my.data||[]).map(row=>{const el=document.createElement('li');el.dataset.testid='my-shift';el.dataset.recordId=row.id;el.textContent=row.shift_date+' ('+row.hours+'h) - '+row.status+(row.claimed_by_email?' by '+row.claimed_by_email:'');return el;}));
+    $('open-shifts').replaceChildren(...(open.data||[]).map(row=>{const el=document.createElement('li');el.dataset.testid='open-shift';el.dataset.recordId=row.id;el.textContent=row.owner_email+': '+row.shift_date+' ('+row.hours+'h)';const btn=document.createElement('button');btn.dataset.testid='claim-btn';btn.textContent='Claim';btn.onclick=()=>app.claimShift(row.id);el.appendChild(btn);return el;}));
+    document.querySelector('#app-card').dataset.ready='true';
+  },
+  postShift:async()=>{
+    const btn=$('shift-post-btn');if(btn.disabled)return;btn.disabled=true;$('app-error').textContent='';status('Posting...');
+    try{
+      if(!currentUser)throw new Error('Sign in before posting.');
+      const date=$('shift-date').value,hours=$('shift-hours').value.trim();
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+'T00:00:00Z'))){fail(new Error('Enter a valid date (YYYY-MM-DD).'));return;}
+      if(!hours||!Number.isFinite(Number(hours))||Number(hours)<=0){fail(new Error('Enter valid hours.'));return;}
+      const {data,error}=await db.from('shift_swaps').insert({owner_id:currentUser.id,owner_email:currentUser.email,shift_date:date,hours:String(hours),status:'open'}).select('id,owner_id,shift_date,hours,status').single();
+      if(error)throw error;if(!data?.id)throw new Error('shift_swaps: insert returned no primary key.');
+      await app.load();status('Shift posted: '+data.id);
+    }catch(error){status('Not posted.');fail(error);}finally{btn.disabled=false;}
+  },
+  claimShift:async(id)=>{
+    try{
+      if(!currentUser)throw new Error('Sign in before claiming.');
+      const {data,error}=await db.from('shift_swaps').update({status:'claimed',claimed_by:currentUser.id,claimed_by_email:currentUser.email}).eq('id',id).eq('status','open').is('claimed_by',null).select('id,claimed_by,claimed_by_email').single();
+      if(error)throw error;if(!data?.id)throw new Error('Claim returned no row.');
+      await app.load();status('Claimed: '+data.id);
+    }catch(error){fail(error);}
+  }
+};
+const auth={
+  apply:session=>{
+    const next=session?.user||null;
+    if(next&&currentUser?.id===next.id){if(restoring)return restoring;if(document.querySelector('#app-card').dataset.ready==='true')return Promise.resolve();}
+    const version=++authVersion;currentUser=next;loadVersion++;clearLists();
+    document.querySelector('#app-card').dataset.ready='false';
+    document.querySelector('#app-card').classList.add('hidden');document.querySelector('#auth-card').classList.remove('hidden');
+    if(!next){restoring=null;return Promise.resolve();}
+    $('auth-status').textContent='Loading...';
+    const pending=app.load().then(()=>{if(version!==authVersion)return;document.querySelector('#auth-card').classList.add('hidden');document.querySelector('#app-card').classList.remove('hidden');status('Shifts loaded.');}).finally(()=>{if(version===authVersion){restoring=null;$('auth-status').textContent='';}});
+    restoring=pending;return pending;
+  },
+  login:async()=>{if($('btn-login').disabled)return;$('btn-login').disabled=true;$('auth-error').textContent='';$('app-error').textContent='';try{const {data,error}=await db.auth.signInWithPassword({email:$('auth-email').value.trim(),password:$('auth-password').value});if(error)throw error;if(!data.session)throw new Error('No session returned.');await auth.apply(data.session);}catch(error){fail(error,'auth-error');}finally{$('btn-login').disabled=false;}},
+  signUp:async()=>{if($('btn-signup').disabled)return;$('btn-signup').disabled=true;$('auth-error').textContent='';try{const {data,error}=await db.auth.signUp({email:$('auth-email').value.trim(),password:$('auth-password').value});if(error)throw error;if(data.session)await auth.apply(data.session);else $('auth-status').textContent='Check your email to confirm.';}catch(error){fail(error,'auth-error');}finally{$('btn-signup').disabled=false;}},
+  logout:async()=>{try{const {error}=await db.auth.signOut();if(error)throw error;await auth.apply(null);}catch(error){fail(error);}},
+  restore:async()=>{try{const {data,error}=await db.auth.getSession();if(error)throw error;await auth.apply(data.session);}catch(error){fail(error,'auth-error');}}
+};
+db.auth.onAuthStateChange((event,session)=>{setTimeout(()=>{auth.apply(session).catch(error=>fail(error,'auth-error'));},0);});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')auth.restore();});
+auth.restore();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(error=>fail(error));
+</script>
+</body>
+</html>
+<!--kenji-preview-sha:fbe425a266fa4d61-->
