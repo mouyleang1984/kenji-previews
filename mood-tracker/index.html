@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Mood Tracker</title>
+<link rel="manifest" href="manifest.json">
+<style>
+body{margin:0;padding:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;background:#faf5ff;font-family:system-ui;color:#222}
+h1{margin:20px 0 10px}
+.moods{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:16px}
+.mood-btn{font-size:40px;width:64px;height:64px;border:none;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.15);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.mood-btn:active{transform:scale(0.92)}
+#count{font-size:22px;font-weight:700;margin:12px}
+#last{font-size:16px;color:#666;margin:8px}
+#log{margin:16px;width:90%;max-width:400px;text-align:left;font-size:14px;max-height:200px;overflow:auto}
+</style>
+</head>
+<body>
+<h1 data-testid="title">Mood Tracker</h1>
+<div class="moods">
+<button class="mood-btn" data-testid="mood-happy" data-mood="happy">😀</button>
+<button class="mood-btn" data-testid="mood-calm" data-mood="calm">😊</button>
+<button class="mood-btn" data-testid="mood-neutral" data-mood="neutral">😐</button>
+<button class="mood-btn" data-testid="mood-sad" data-mood="sad">😢</button>
+<button class="mood-btn" data-testid="mood-angry" data-mood="angry">😡</button>
+</div>
+<div id="count" data-testid="count-display" data-record-id="">Entries: 0</div>
+<div id="last" data-testid="last-mood">No mood logged yet</div>
+<div id="log" data-testid="log-display"></div>
+<script>
+function load(){try{return JSON.parse(localStorage.getItem('mood-entries')||'[]');}catch(e){return [];}}
+function save(entries){localStorage.setItem('mood-entries',JSON.stringify(entries));}
+var entries=load();
+window.appState={count:entries.length,lastMood:entries.length?entries[entries.length-1].mood:null};
+function render(){var countEl=document.getElementById('count');countEl.textContent='Entries: '+entries.length;countEl.dataset.recordId='count-'+entries.length;var lastEl=document.getElementById('last');lastEl.textContent=entries.length?'Last mood: '+entries[entries.length-1].mood:'No mood logged yet';window.appState.count=entries.length;window.appState.lastMood=entries.length?entries[entries.length-1].mood:null;var logEl=document.getElementById('log');logEl.innerHTML='';entries.slice(-5).reverse().forEach(function(e){var div=document.createElement('div');div.textContent=e.mood+' at '+e.time;logEl.appendChild(div);});}
+function logMood(mood){entries.push({mood:mood,time:new Date().toISOString()});save(entries);render();}
+document.querySelectorAll('.mood-btn').forEach(function(btn){btn.addEventListener('click',function(){logMood(btn.dataset.mood);});});
+render();
+</script>
+</body>
+</html>
+<!--kenji-preview-sha:e03649460048c316-->
