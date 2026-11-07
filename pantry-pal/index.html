@@ -1,0 +1,91 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"><title>Pantry Pal</title><link rel="manifest" href="manifest.json"><style>:root{--primary:#2f6f4f;--bg:#f6faf7}body{font-family:system-ui;background:var(--bg);margin:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);font-size:16px}input,button{font-size:16px;height:44px;width:100%;box-sizing:border-box;margin:8px 0;padding:0 12px;border:1px solid #ccc;border-radius:6px}.container{max-width:600px;margin:0 auto;padding:20px}#auth-card,#app-card{padding:20px;background:white;border-radius:12px}.hidden{display:none}li{padding:12px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}button{cursor:pointer;background:var(--primary);color:white;border:none}*{box-sizing:border-box}body{min-height:100dvh}.container{width:100%;min-width:0}li,p{overflow-wrap:anywhere}ul{padding-left:0;min-width:0}input{min-width:0;max-width:100%}</style></head><body><div class="container"><div id="auth-card" data-testid="auth-card"><p data-testid="auth-error" role="alert"></p><p data-testid="auth-status" role="status"></p><h1>Pantry Pal</h1><input data-testid="auth-email" type="email" placeholder="Email"><input data-testid="auth-password" type="password" placeholder="Password"><button data-testid="btn-signup" onclick="auth.signUp()">Sign Up</button><button data-testid="btn-login" onclick="auth.login()">Login</button></div><div id="app-card" data-testid="app-card" class="hidden"><p data-testid="app-error" role="alert"></p><p data-testid="app-status" role="status"></p><button data-testid="logout" id="logout-btn" onclick="auth.logout()">Logout</button><h2>Pantry</h2><input data-testid="pantry-name" placeholder="Name"><input data-testid="pantry-qty" type="number" placeholder="Qty"><input data-testid="pantry-expiry" type="date"><button data-testid="pantry-save-btn" onclick="app.addPantry()">Add Item</button><ul data-testid="pantry-list"></ul><h3>Expiring Soon</h3><div id="expiring-list"></div><h2>Shopping List</h2><input data-testid="shopping-name" placeholder="Item Name"><button data-testid="shopping-save-btn" onclick="app.addShopping()">Add Item</button><ul data-testid="shopping-list"></ul></div></div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>const db=window.supabase.createClient('https://ohcyjurhonzdvkqoellw.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oY3lqdXJob256ZHZrcW9lbGx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM5ODk1MzAsImV4cCI6MjEwOTU2NTUzMH0.vRWDn0qZI3-B2UW3m6r1OHohjjX5qVyqwkcc314iYwM',{auth:{persistSession:true,autoRefreshToken:true}});
+const $=id=>document.querySelector('[data-testid="'+id+'"]');
+let currentUser=null, authVersion=0, loadVersion=0, restoring=null;
+function fail(error,target='app-error'){
+  const detail=[error.code,error.message||String(error),error.details,error.hint].filter(Boolean).join(': ');
+  $(target).textContent=detail;
+  console.error('Pantry Pal: '+detail);
+}
+function status(text){$('app-status').textContent=text;}
+function clearLists(){for(const id of ['pantry-list','shopping-list'])$(id).replaceChildren();document.querySelector('#expiring-list').replaceChildren();}
+function renderRows(id,rows,type){
+  $(id).replaceChildren(...rows.map(row=>{const el=document.createElement('li');el.dataset.testid=type;el.dataset.recordId=row.id;el.textContent=type==='pantry-item'?row.name+' ('+row.quantity+') - '+row.expiry_date:row.name;return el;}));
+}
+const app={
+  load:async()=>{
+    if(!currentUser)throw new Error('Sign in before loading pantry items.');
+    const owner=currentUser.id, version=++loadVersion;
+    const [p,s]=await Promise.all([
+      db.from('pantry_pal_items').select('id,name,quantity,expiry_date').eq('owner_id',owner).order('created_at',{ascending:true}),
+      db.from('pantry_pal_shopping').select('id,name').eq('owner_id',owner).order('created_at',{ascending:true})
+    ]);
+    if(p.error)throw p.error;if(s.error)throw s.error;
+    if(currentUser?.id!==owner||version!==loadVersion)return;
+    renderRows('pantry-list',p.data||[],'pantry-item');renderRows('shopping-list',s.data||[],'shopping-item');
+    document.querySelector('#expiring-list').replaceChildren(...(p.data||[]).filter(row=>new Date(row.expiry_date+'T00:00:00Z').getTime()<Date.now()+7*86400000).map(row=>{const el=document.createElement('div');el.dataset.testid='expiring-item';el.textContent=row.name;return el;}));
+    document.querySelector('#app-card').dataset.ready='true';
+  },
+  save:async(table,payload,button)=>{
+    const control=$(button);if(control.disabled)return;
+    control.disabled=true;$('app-error').textContent='';status('Saving…');
+    try{
+      const session=await db.auth.getSession();if(session.error)throw session.error;
+      if(!currentUser||!session.data.session||session.data.session.user.id!==currentUser.id)throw new Error('Your sign-in session is missing or changed. Sign in before saving.');
+      const owner=currentUser.id, fields=table==='pantry_pal_items'?'id,owner_id,name,quantity,expiry_date':'id,owner_id,name';
+      const response=await db.from(table).insert({...payload,owner_id:owner}).select(fields).single();
+      const {data,error}=response;
+      window.__pantryInsertEvidence={table,signed_in:true,user_id:owner,columns:Object.keys(payload),status:response.status,statusText:response.statusText,data,error};
+      console.info('Pantry Pal insert response',JSON.stringify(window.__pantryInsertEvidence));
+      if(error)throw error;if(!data?.id)throw new Error(table+': insert returned no primary key.');
+      if(data.owner_id!==owner||Object.entries(payload).some(([key,value])=>String(data[key])!==String(value)))throw new Error(table+': inserted row did not match the submitted fields.');
+      if(currentUser?.id!==owner)throw new Error('Account changed while saving. Reload your pantry.');
+      // Render only the actual COMMITTED server row, never a fabricated/optimistic item.
+      // Do not hold the list update behind three additional database round trips.
+      const list=table==='pantry_pal_items'?'pantry-list':'shopping-list',type=table==='pantry_pal_items'?'pantry-item':'shopping-item';
+      const holder=document.createElement('li');holder.dataset.testid=type;holder.dataset.recordId=data.id;holder.textContent=type==='pantry-item'?data.name+' ('+data.quantity+') - '+data.expiry_date:data.name;$(list).append(holder);
+      const {data:read,error:readError}=await db.from(table).select(fields).eq('id',data.id).eq('owner_id',owner).single();
+      if(readError)throw readError;
+      if(!read||read.owner_id!==owner||Object.entries(payload).some(([key,value])=>String(read[key])!==String(value)))throw new Error(table+': independent read-back did not match the saved fields.');
+      await app.load();status('Saved. Read back '+read.id+'.');
+    }catch(error){status('Not saved.');fail(error);}finally{control.disabled=false;}
+  },
+  addPantry:async()=>{
+    const name=$('pantry-name').value.trim(), quantity=$('pantry-qty').value.trim(), expiry_date=$('pantry-expiry').value;
+    if(!name||!quantity||!Number.isFinite(Number(quantity))||Number(quantity)<=0||!/^\d{4}-\d{2}-\d{2}$/.test(expiry_date)||!Number.isFinite(Date.parse(expiry_date+'T00:00:00Z'))||new Date(expiry_date+'T00:00:00Z').toISOString().slice(0,10)!==expiry_date){fail(new Error('Enter a name, a positive quantity and an expiry date (YYYY-MM-DD).'));return;}
+    await app.save('pantry_pal_items',{name,quantity,expiry_date},'pantry-save-btn');
+  },
+  addShopping:async()=>{
+    const name=$('shopping-name').value.trim();if(!name){fail(new Error('Enter a shopping item name.'));return;}
+    await app.save('pantry_pal_shopping',{name},'shopping-save-btn');
+  }
+};
+const auth={
+  apply:session=>{
+    const next=session?.user||null;
+    if(next&&currentUser?.id===next.id){if(restoring)return restoring;if(document.querySelector('#app-card').dataset.ready==='true')return Promise.resolve();}
+    const version=++authVersion;currentUser=next;loadVersion++;clearLists();
+    document.querySelector('#app-card').dataset.ready='false';
+    document.querySelector('#app-card').classList.add('hidden');document.querySelector('#auth-card').classList.remove('hidden');
+    if(!next){restoring=null;return Promise.resolve();}
+    $('auth-status').textContent='Loading your pantry…';
+    const pending=app.load().then(()=>{if(version!==authVersion)return;document.querySelector('#auth-card').classList.add('hidden');document.querySelector('#app-card').classList.remove('hidden');status('Pantry loaded.');}).finally(()=>{if(version===authVersion){restoring=null;$('auth-status').textContent='';}});
+    restoring=pending;return pending;
+  },
+  login:async()=>{
+    if($('btn-login').disabled)return;$('btn-login').disabled=true;$('auth-error').textContent='';$('app-error').textContent='';
+    try{const {data,error}=await db.auth.signInWithPassword({email:$('auth-email').value.trim(),password:$('auth-password').value});if(error)throw error;if(!data.session)throw new Error('No sign-in session returned.');await auth.apply(data.session);}catch(error){fail(error,'auth-error');}finally{$('btn-login').disabled=false;}
+  },
+  signUp:async()=>{
+    if($('btn-signup').disabled)return;$('btn-signup').disabled=true;$('auth-error').textContent='';
+    try{const {data,error}=await db.auth.signUp({email:$('auth-email').value.trim(),password:$('auth-password').value});if(error)throw error;if(data.session)await auth.apply(data.session);else $('auth-status').textContent='Check your email to confirm your account, then sign in.';}catch(error){fail(error,'auth-error');}finally{$('btn-signup').disabled=false;}
+  },
+  logout:async()=>{try{const {error}=await db.auth.signOut();if(error)throw error;await auth.apply(null);}catch(error){fail(error);}},
+  restore:async()=>{try{const {data,error}=await db.auth.getSession();if(error)throw error;await auth.apply(data.session);}catch(error){fail(error,'auth-error');}}
+};
+// Never query Supabase while its authentication callback holds the session lock.
+db.auth.onAuthStateChange((event,session)=>{setTimeout(()=>{auth.apply(session).catch(error=>fail(error,'auth-error'));},0);});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')auth.restore();});
+auth.restore();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(error=>fail(error));
+</script></body></html>
+<!--kenji-preview-sha:80a8b85a4bc74fc9-->
