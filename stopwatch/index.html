@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Stopwatch</title>
+<link rel="manifest" href="manifest.json">
+<style>
+*{box-sizing:border-box}html,body{max-width:100%;overflow-x:hidden;margin:0;padding:0}img{max-width:100%;height:auto}
+body{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#09090b;color:#fff;font-family:system-ui}
+#display{font-size:56px;font-family:monospace;margin:16px}
+.controls{display:flex;gap:12px;margin:12px;flex-wrap:wrap;justify-content:center}
+button{font-size:18px;height:48px;padding:0 24px;border:none;border-radius:8px;cursor:pointer;font-weight:600}
+#start{background:#16a34a;color:#fff}
+#stop{background:#dc2626;color:#fff}
+#lap{background:#f59e0b;color:#09090b}
+#laps{width:90%;max-width:380px;font-size:14px;text-align:left;max-height:200px;overflow:auto}
+</style>
+</head><body>
+<h1 data-testid="title">Stopwatch</h1>
+<div id="display" data-testid="time-display">00:00.000</div>
+<div class="controls">
+<button id="start" data-testid="start-btn">Start</button>
+<button id="stop" data-testid="stop-btn">Stop</button>
+<button id="lap" data-testid="lap-btn">Lap</button>
+</div>
+<div id="laps" data-testid="laps-display"></div>
+<script>
+if (!localStorage.getItem('sw-laps')) localStorage.setItem('sw-laps', '0');
+var startMs=0,elapsed=0,handle=null,laps=parseInt(localStorage.getItem('sw-laps')||'0',10);
+var display=document.getElementById('display'),lapsEl=document.getElementById('laps');
+window.appState={running:false,elapsed:0,laps:laps};
+window.advanceMs=function(ms){elapsed=ms;if(window.appState.running)startMs=Date.now()-elapsed;updateDisplay();};
+function fmt(ms){var m=Math.floor(ms/60000),s=Math.floor((ms%60000)/1000),x=ms%1000;return (m<10?'0':'')+m+':'+(s<10?'0':'')+s+'.'+(x<100?(x<10?'00':'0'):'')+x;}
+function updateDisplay(){display.textContent=fmt(elapsed);window.appState.elapsed=elapsed;}
+window.startSw=function(){if(handle)return;window.appState.running=true;startMs=Date.now()-elapsed;handle=setInterval(function(){elapsed=Date.now()-startMs;updateDisplay();},31);};
+window.stopSw=function(){if(!handle)return;clearInterval(handle);handle=null;window.appState.running=false;};
+window.lapSw=function(){if(!window.appState.running)return;laps++;localStorage.setItem('sw-laps',String(laps));var div=document.createElement('div');div.textContent='Lap '+laps+': '+fmt(elapsed);lapsEl.prepend(div);window.appState.laps=laps;};
+document.getElementById('start').addEventListener('click',window.startSw);
+document.getElementById('stop').addEventListener('click',window.stopSw);
+document.getElementById('lap').addEventListener('click',window.lapSw);
+for(var i=1;i<=laps;i++){var div=document.createElement('div');div.textContent='Lap '+i+': (historical)';lapsEl.prepend(div);}
+updateDisplay();
+</script>
+</body></html>
+<!--kenji-preview-sha:60ffeb1c3cef4bbc-->
