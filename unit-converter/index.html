@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Unit Converter</title>
+<link rel="manifest" href="manifest.json">
+<style>
+*{box-sizing:border-box}html,body{max-width:100%;overflow-x:hidden;margin:0;padding:0}img{max-width:100%;height:auto}
+body{min-height:100vh;display:flex;flex-direction:column;align-items:center;background:#eff6ff;font-family:system-ui;color:#1e3a8a;padding:20px}
+.card{background:#fff;border-radius:12px;padding:24px;width:100%;max-width:380px;margin:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+label{display:block;margin:10px 0 4px;font-size:14px;font-weight:600}
+input,select{width:100%;height:44px;font-size:18px;padding:0 8px;border:1px solid #ccc;border-radius:8px}
+button{width:100%;height:48px;font-size:18px;margin-top:16px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer}
+#result{font-size:24px;font-weight:700;color:#2563eb;margin:12px 0;text-align:center}
+</style>
+</head><body>
+<div class="card">
+<h1 data-testid="title">Unit Converter</h1>
+<label for="value">Value</label>
+<input id="value" data-testid="value-input" type="number" inputmode="decimal" value="10">
+<label for="direction">Direction</label>
+<select id="direction" data-testid="direction-select">
+<option value="km-to-mi">Kilometers to Miles</option>
+<option value="mi-to-km">Miles to Kilometers</option>
+</select>
+<button id="convert-btn" data-testid="convert-btn">Convert</button>
+<div id="result" data-testid="result-display" data-record-id="">--</div>
+<div id="saved" data-testid="saved-display" data-record-id="">No saved conversion</div>
+</div>
+<script>
+function convert(){var v=parseFloat(document.getElementById('value').value)||0;var dir=document.getElementById('direction').value;var out=dir==='km-to-mi'?v*0.621371:v*1.60934;var unit=dir==='km-to-mi'?'mi':'km';document.getElementById('result').textContent=out.toFixed(2)+' '+unit;window.appState={value:v,direction:dir,result:Math.round(out*100)/100};localStorage.setItem('conv-last',JSON.stringify(window.appState));var s=document.getElementById('saved');s.textContent='Last: '+out.toFixed(2)+' '+unit;s.dataset.recordId='conv-'+Math.round(out*100);}
+document.getElementById('convert-btn').addEventListener('click',convert);
+window.appState={value:10,direction:'km-to-mi',result:6.21};
+var last=localStorage.getItem('conv-last');if(last){try{var p=JSON.parse(last);document.getElementById('saved').textContent='Last: '+p.result;document.getElementById('saved').dataset.recordId='conv-'+Math.round(p.result*100);}catch(e){}}
+</script>
+</body></html>
+<!--kenji-preview-sha:f82ba7c64e0c8224-->
