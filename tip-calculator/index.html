@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Tip Calculator</title>
+<link rel="manifest" href="manifest.json">
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;background:#f5f5f5;font-family:system-ui;color:#222;overflow-x:hidden}
+.card{background:#fff;border-radius:12px;padding:24px;margin:20px;width:90%;max-width:420px;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+label{display:block;margin:10px 0 4px;font-size:14px;font-weight:600}
+input{width:100%;height:44px;font-size:18px;padding:0 8px;border:1px solid #ccc;border-radius:8px;box-sizing:border-box}
+button{width:100%;height:48px;font-size:18px;margin:16px 0 0;border:none;border-radius:8px;background:#16a34a;color:#fff;cursor:pointer}
+.result{font-size:20px;font-weight:700;margin:8px 0}
+#tip-amount,#total,#per-person{color:#16a34a}
+</style>
+</head>
+<body>
+<div class="card">
+<h1 data-testid="title">Tip Calculator</h1>
+<label for="bill">Bill amount ($)</label>
+<input id="bill" data-testid="bill-input" type="number" inputmode="decimal" step="0.01" value="50">
+<label for="tip">Tip percent (%)</label>
+<input id="tip" data-testid="tip-input" type="number" inputmode="decimal" step="1" value="18">
+<label for="people">Number of people</label>
+<input id="people" data-testid="people-input" type="number" inputmode="numeric" step="1" value="2">
+<button id="calc-btn" data-testid="calc-btn">Calculate</button>
+<div class="result">Tip: $<span id="tip-amount" data-testid="tip-amount">9.00</span></div>
+<div class="result">Total: $<span id="total" data-testid="total">59.00</span></div>
+<div class="result">Per person: $<span id="per-person" data-testid="per-person">29.50</span></div>
+<div id="saved" data-testid="saved-display" data-record-id="">Last saved: none</div>
+</div>
+<script>
+function calc(){var bill=parseFloat(document.getElementById('bill').value)||0;var tip=parseFloat(document.getElementById('tip').value)||0;var people=Math.max(1,parseInt(document.getElementById('people').value,10)||1);var tipAmt=bill*tip/100;var total=bill+tipAmt;var per=total/people;document.getElementById('tip-amount').textContent=tipAmt.toFixed(2);document.getElementById('total').textContent=total.toFixed(2);document.getElementById('per-person').textContent=per.toFixed(2);window.appState={bill:bill,tip:tip,people:people,tipAmount:tipAmt,total:total,perPerson:per};localStorage.setItem('tip-calc-last',JSON.stringify(window.appState));var saved=document.getElementById('saved');saved.textContent='Last saved: $'+total.toFixed(2);saved.dataset.recordId='saved-'+Math.round(total*100);}
+document.getElementById('calc-btn').addEventListener('click',calc);
+window.appState={bill:50,tip:18,people:2,tipAmount:9,total:59,perPerson:29.5};
+var last=localStorage.getItem('tip-calc-last');if(last){try{var p=JSON.parse(last);document.getElementById('saved').textContent='Last saved: $'+p.total.toFixed(2);document.getElementById('saved').dataset.recordId='saved-'+Math.round(p.total*100);}catch(e){}}
+</script>
+</body>
+</html>
+<!--kenji-preview-sha:4e2647bf94d6f40d-->
