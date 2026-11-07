@@ -12,8 +12,11 @@ input,button{font-size:16px;height:44px;width:100%;box-sizing:border-box;margin:
 .container{max-width:600px;margin:0 auto;padding:20px}
 #auth-card,#app-card{padding:20px;background:white;border-radius:12px}
 .hidden{display:none}
-li{padding:12px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}
+li{padding:12px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;gap:8px}
 button{cursor:pointer;background:var(--primary);color:white;border:none}
+li.cancelled{opacity:0.5;text-decoration:line-through;color:#888}
+li.cancelled button{display:none}
+.cancel-btn{background:#b91c1c;max-width:120px;flex:0 0 auto}
 *{box-sizing:border-box}body{min-height:100dvh}.container{width:100%;min-width:0}li,p{overflow-wrap:anywhere}ul{padding-left:0;min-width:0}input{min-width:0;max-width:100%}
 </style>
 </head>
@@ -40,7 +43,7 @@ const app={
     ]);
     if(my.error)throw my.error;if(open.error)throw open.error;
     if(currentUser?.id!==owner||version!==loadVersion)return;
-    $('my-shifts').replaceChildren(...(my.data||[]).map(row=>{const el=document.createElement('li');el.dataset.testid='my-shift';el.dataset.recordId=row.id;el.textContent=row.shift_date+' ('+row.hours+'h) - '+row.status+(row.claimed_by_email?' by '+row.claimed_by_email:'');return el;}));
+    $('my-shifts').replaceChildren(...(my.data||[]).map(row=>{const el=document.createElement('li');el.dataset.testid='my-shift';el.dataset.recordId=row.id;el.classList.toggle('cancelled',row.status==='cancelled');el.textContent=row.shift_date+' ('+row.hours+'h) - '+row.status+(row.claimed_by_email?' by '+row.claimed_by_email:'');if(row.status!=='cancelled'){const btn=document.createElement('button');btn.dataset.testid='cancel-btn';btn.className='cancel-btn';btn.textContent='Cancel';btn.onclick=()=>app.cancelShift(row.id);el.appendChild(btn);}return el;}));
     $('open-shifts').replaceChildren(...(open.data||[]).map(row=>{const el=document.createElement('li');el.dataset.testid='open-shift';el.dataset.recordId=row.id;el.textContent=row.owner_email+': '+row.shift_date+' ('+row.hours+'h)';const btn=document.createElement('button');btn.dataset.testid='claim-btn';btn.textContent='Claim';btn.onclick=()=>app.claimShift(row.id);el.appendChild(btn);return el;}));
     document.querySelector('#app-card').dataset.ready='true';
   },
@@ -62,6 +65,14 @@ const app={
       const {data,error}=await db.from('shift_swaps').update({status:'claimed',claimed_by:currentUser.id,claimed_by_email:currentUser.email}).eq('id',id).eq('status','open').is('claimed_by',null).select('id,claimed_by,claimed_by_email').single();
       if(error)throw error;if(!data?.id)throw new Error('Claim returned no row.');
       await app.load();status('Claimed: '+data.id);
+    }catch(error){fail(error);}
+  },
+  cancelShift:async(id)=>{
+    try{
+      if(!currentUser)throw new Error('Sign in before cancelling.');
+      const {data,error}=await db.from('shift_swaps').update({status:'cancelled'}).eq('id',id).eq('owner_id',currentUser.id).select('id,status').single();
+      if(error)throw error;if(!data?.id)throw new Error('Cancel returned no row.');
+      await app.load();status('Cancelled: '+data.id);
     }catch(error){fail(error);}
   }
 };
@@ -89,4 +100,4 @@ if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catc
 </script>
 </body>
 </html>
-<!--kenji-preview-sha:fbe425a266fa4d61-->
+<!--kenji-preview-sha:709ac043d09eba97-->
