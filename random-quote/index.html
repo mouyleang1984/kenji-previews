@@ -1,31 +1,4 @@
-<!DOCTYPE html>
-<html lang="en"><head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<title>Random Quote</title>
-<link rel="manifest" href="manifest.json">
-<style>
-*{box-sizing:border-box}html,body{max-width:100%;overflow-x:hidden;margin:0;padding:0}img{max-width:100%;height:auto}
-body{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#1c1917;color:#fafaf9;font-family:system-ui;padding:20px}
-#quote{font-size:22px;font-style:italic;max-width:380px;text-align:center;margin:16px;min-height:80px;line-height:1.5}
-#author{font-size:16px;font-weight:600;color:#f59e0b;margin:8px}
-button{font-size:18px;height:48px;padding:0 28px;border:none;border-radius:8px;background:#f59e0b;color:#1c1917;cursor:pointer;font-weight:700}
-#count{font-size:14px;color:#a8a29e;margin:12px}
-</style>
-</head><body>
-<h1 data-testid="title">Random Quote</h1>
-<div id="quote" data-testid="quote-display">Tap next for inspiration</div>
-<div id="author" data-testid="author-display"></div>
-<button id="next-btn" data-testid="next-btn">Next Quote</button>
-<div id="count" data-testid="count-display" data-record-id="">Quotes seen: 0</div>
-<script>
-var QUOTES=[{q:'The best way to predict the future is to invent it.',a:'Alan Kay'},{q:'Simplicity is the soul of efficiency.',a:'Austin Freeman'},{q:'Make it work, make it right, make it fast.',a:'Kent Beck'},{q:'The only way to go fast is to go well.',a:'Uncle Bob'},{q:'Talk is cheap. Show me the code.',a:'Linus Torvalds'}];
-var seen=parseInt(localStorage.getItem('quote-seen')||'0',10);
-var quoteEl=document.getElementById('quote'),authorEl=document.getElementById('author'),countEl=document.getElementById('count');
-window.appState={current:null,index:-1,seen:seen};
-window.nextQuote=function(){var i;do{i=Math.floor(Math.random()*QUOTES.length);}while(QUOTES.length>1&&i===window.appState.index);quoteEl.textContent='"'+QUOTES[i].q+'"';authorEl.textContent='-'+QUOTES[i].a;seen++;localStorage.setItem('quote-seen',String(seen));countEl.textContent='Quotes seen: '+seen;countEl.dataset.recordId='seen-'+seen;window.appState={current:QUOTES[i].q,index:i,seen:seen};};
-document.getElementById('next-btn').addEventListener('click',window.nextQuote);
-countEl.textContent='Quotes seen: '+seen;countEl.dataset.recordId='seen-'+seen;
-</script>
-</body></html>
-<!--kenji-preview-sha:349432b7b294d371-->
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Random Quote</title><link rel="manifest" href="manifest.json"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><style>body{margin:0;font-family:sans-serif;padding:20px;background:#fff;display:flex;justify-content:center;box-sizing:border-box;overflow-x:hidden}#app{width:100%;max-width:360px}button{min-height:44px;font-size:16px;padding:10px;width:100%;margin-top:10px}input{font-size:16px;padding:10px;display:block;width:100%;margin-bottom:10px;box-sizing:border-box}.hidden{display:none}</style></head><body><div id="app"></div><script type="module">
+const db = window.supabase.createClient('https://ohcyjurhonzdvkqoellw.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oY3lqdXJob256ZHZrcW9lbGx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM5ODk1MzAsImV4cCI6MjEwOTU2NTUzMH0.vRWDn0qZI3-B2UW3m6r1OHohjjX5qVyqwkcc314iYwM', {auth:{autoRefreshToken:true,persistSession:true}}); const app = document.getElementById('app'); async function load() { const {data: {session}} = await db.auth.getSession(); if(!session) return renderLogin(); const {data, error} = await db.from('quotes').select('*'); if(error) throw error; renderQuotes(data); } function renderLogin() { app.innerHTML = `<h2>Login</h2><input data-testid="email" placeholder="Email"><input type="password" data-testid="password" placeholder="Password"><button data-testid="login">Login</button>`; app.querySelector('[data-testid="login"]').onclick = async () => { try { const {error} = await db.auth.signInWithPassword({email: app.querySelector('[data-testid="email"]').value, password: app.querySelector('[data-testid="password"]').value}); if(error) throw error; await load(); } catch(e) { console.error(e); } }; } function renderQuotes(quotes) { app.innerHTML = `<h1>Quotes</h1><p data-testid="count">Total: ${quotes.length}</p><div data-testid="quote-list">${quotes.map(q => `<div data-record-id="${q.id}" data-testid="quote-item">${q.content}</div>`).join('')}</div><input data-testid="new-quote" placeholder="New Quote"><button data-testid="add-quote">Add Quote</button><button data-testid="logout">Logout</button>`; app.querySelector('[data-testid="add-quote"]').onclick = async () => { try { const content = app.querySelector('[data-testid="new-quote"]').value; if(!content) return; const {error, data} = await db.from('quotes').insert({content}).select().single(); if(error) throw error; await load(); } catch(e) { console.error(e); } }; app.querySelector('[data-testid="logout"]').onclick = async () => { await db.auth.signOut(); await load(); }; } window.addEventListener('visibilitychange', load); if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js'); load();
+</script></body></html>
+<!--kenji-preview-sha:af9e26a32b9d6676-->
