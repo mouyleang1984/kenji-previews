@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>Gym Ops</title>
+<link rel="manifest" href="manifest.json">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:#0f172a;overflow-x:hidden}
+#app{min-height:100dvh}
+.nav{display:flex;gap:.375rem;padding:.75rem;background:#0f172a;color:#fff;flex-wrap:wrap;align-items:center}
+.nav a{color:#cbd5e1;cursor:pointer;text-decoration:none;padding:.5rem .75rem;border-radius:6px;min-height:40px;display:flex;align-items:center;font-size:.95rem}
+.nav a:hover{background:#1e293b;color:#fff}
+.nav a.active{background:#22c55e;color:#fff}
+.nav .spacer{flex:1}
+.view{padding:1.25rem;max-width:1000px;margin:0 auto}
+.view h2{margin-bottom:.75rem;font-size:1.4rem}
+.form{display:grid;gap:.5rem;margin-bottom:1rem;padding:1rem;background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.form input,.form select,.form textarea{padding:.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:16px;min-height:40px}
+.form button{padding:.5rem 1rem;background:#22c55e;color:#fff;border:none;border-radius:6px;cursor:pointer;min-height:40px;font-size:1rem}
+.form button:hover{background:#16a34a}
+.row{background:#fff;padding:.75rem;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,.06);margin-bottom:.5rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap}
+.row .meta{color:#64748b;font-size:.85rem}
+.stat{background:#fff;padding:1rem;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:.75rem}
+.stat .num{font-size:1.5rem;font-weight:700}
+.empty{color:#94a3b8;font-style:italic;padding:.5rem}
+.auth{max-width:420px;margin:2rem auto;padding:1.5rem;background:#fff;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.auth h2{margin-bottom:.75rem}
+.auth .field{margin-bottom:.5rem}
+.auth input{width:100%;padding:.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:16px;min-height:40px}
+.auth button{width:100%;padding:.6rem;background:#22c55e;color:#fff;border:none;border-radius:6px;cursor:pointer;min-height:40px;font-size:1rem;margin-top:.5rem}
+.auth .toggle{color:#22c55e;cursor:pointer;text-align:center;margin-top:.5rem;min-height:40px;display:flex;align-items:center;justify-content:center}
+.notice{padding:.5rem;background:#ecfdf5;color:#065f46;border-radius:6px;margin-top:.5rem}
+.pill{padding:.15rem .5rem;border-radius:999px;font-size:.75rem;background:#e0e7ff;color:#3730a3}
+.pill.paid{background:#dcfce7;color:#166534}
+.pill.unpaid{background:#fef3c7;color:#92400e}
+.pill.draft{background:#f1f5f9;color:#475569}
+@media(max-width:640px){.view{padding:1rem}.nav{font-size:.85rem}.nav a{padding:.4rem .5rem}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(function(app){
+app.config={tables:{member:'gym_members',plan:'gym_plans',membership:'gym_memberships',class:'gym_classes',trainer:'gym_trainers',attendance:'gym_attendance',payment:'gym_payments',invoice:'gym_invoices',equipment:'gym_equipment',task:'gym_tasks'},routes:['dashboard','members','classes','trainers','attendance','payments','invoices','reports']};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+window.SUPABASE_URL='https://ohcyjurhonzdvkqoellw.supabase.co';
+window.SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oY3lqdXJob256ZHZrcW9lbGx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM5ODk1MzAsImV4cCI6MjEwOTU2NTUzMH0.vRWDn0qZI3-B2UW3m6r1OHohjjX5qVyqwkcc314iYwM';
+window.db=window.supabase.createClient(window.SUPABASE_URL,window.SUPABASE_ANON_KEY,{autoRefreshToken:true,persistSession:true});
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.router={routes:{},on:function(path,fn){app.router.routes[path]=fn;},go:function(path){window.location.hash='#'+path;},current:function(){return window.location.hash.replace(/^#/,'')||'';},dispatch:async function(){var path=app.router.current();var fn=app.router.routes[path]||app.router.routes['/dashboard'];if(fn){await fn();}}};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.utils=app.utils||{};
+app.utils.dom={el:function(html){var d=document.createElement('div');d.innerHTML=html;return d.firstElementChild;},on:function(node,evt,fn){node.addEventListener(evt,fn);}};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.utils=app.utils||{};
+app.utils.format={money:function(n){return '$'+(Number(n||0)).toFixed(2);},num:function(n){return String(Number(n||0));}};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.utils=app.utils||{};
+app.utils.validate={required:function(v){return v!=null&&String(v).trim()!=='';},num:function(v){return !isNaN(Number(v));}};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.utils=app.utils||{};
+app.utils.calc={sum:function(rows,field){return (rows||[]).reduce(function(s,r){return s+Number(r[field]||0);},0);},occupancy:function(booked,capacity){var c=Number(capacity||0);if(c<=0)return 0;return Math.round((Number(booked||0)/c)*100);}};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.utils=app.utils||{};
+app.utils.date={monthKey:function(d){var dt=new Date(d||Date.now());return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');}};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.store={
+list:async function(table){var r=await db.from(table).select('*').order('created_at',{ascending:false});if(r.error)throw new Error(r.error.message);return r.data||[];},
+filter:async function(table,f){var q=db.from(table).select('*');for(var k in f){q=q.eq(k,f[k]);}var r=await q;if(r.error)throw new Error(r.error.message);return r.data||[];},
+create:async function(table,payload){var s=app.session;if(!s)throw new Error('no session');var clean={};for(var k in payload){var v=payload[k];clean[k]=(v===''||v==null)?null:v;}var body=Object.assign({owner_id:s.user.id},clean);var r=await db.from(table).insert(body).select().single();if(r.error)throw new Error(r.error.message);var data=r.data;var rb=await db.from(table).select('id').eq('id',data.id).single();if(rb.error||!rb.data)throw new Error('Read-back failed for '+data.id);return data;},
+update:async function(table,id,patch){var clean={};for(var k in patch){var v=patch[k];clean[k]=(v===''||v==null)?null:v;}var r=await db.from(table).update(clean).eq('id',id).select().single();if(r.error)throw new Error(r.error.message);return r.data;},
+remove:async function(table,id){var r=await db.from(table).delete().eq('id',id);if(r.error)throw new Error(r.error.message);}}
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){app.models=app.models||{};app.models.member={fields:['name','email','dob','phone']};})(window.app=window.app||{});
+</script>
+<script>
+(function(app){app.models=app.models||{};app.models.plan={fields:['name','price','billing_cycle']};})(window.app=window.app||{});
+</script>
+<script>
+(function(app){app.models=app.models||{};app.models.membership={fields:['member_id','plan_id','invoice_id','start_date','end_date','status']};})(window.app=window.app||{});
+</script>
+<script>
+(function(app){app.models=app.models||{};app.models.class={fields:['name','trainer_id','capacity','class_date']};})(window.app=window.app||{});
+</script>
+<script>
+(function(app){app.models=app.models||{};app.models.trainer={fields:['name','specialty','weekly_hours']};})(window.app=window.app||{});
+</script>
+<script>
+(function(app){app.models=app.models||{};app.models.attendance={fields:['member_id','class_id','check_in_ts']};})(window.app=window.app||{});
+</script>
+<script>
+(function(app){app.models=app.models||{};app.models.payment={fields:['invoice_id','amount','paid_at']};})(window.app=window.app||{});
+</script>
+<script>
+(function(app){app.models=app.models||{};app.models.invoice={fields:['member_id','number','status']};})(window.app=window.app||{});
+</script>
+<script>
+(function(app){app.models=app.models||{};app.models.equipment={fields:['name','quantity','unit']};})(window.app=window.app||{});
+</script>
+<script>
+(function(app){app.models=app.models||{};app.models.task={fields:['title','due_date','status']};})(window.app=window.app||{});
+</script>
+<script>
+(function(app){app.components=app.components||{};app.components.field=function(label,testid,type){return '<label>'+label+'</label><input data-testid="'+testid+'" name="'+testid+'" type="'+(type||'text')+'">';};})(window.app=window.app||{});
+</script>
+<script>
+(function(app){app.components=app.components||{};app.components.rows=function(items,testid,render){return items.map(function(it){return '<div class="row" data-testid="'+testid+'" data-record-id="'+it.id+'">'+render(it)+'</div>';}).join('')||'<p class="empty">No records</p>';};})(window.app=window.app||{});
+</script>
+<script>
+(function(app){app.components=app.components||{};app.components.stat=function(label,testid,value){return '<div class="stat"><div>'+label+'</div><div class="num" data-testid="'+testid+'">'+value+'</div></div>';};})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.renderLayout=function(){
+var routes=app.config.routes;
+var html='<nav class="nav" data-testid="nav">';
+for(var i=0;i<routes.length;i++){var r=routes[i];html+='<a data-testid="nav-'+r+'" href="#/'+r+'">'+r.charAt(0).toUpperCase()+r.slice(1)+'</a>';}
+html+='<span class="spacer"></span><button data-testid="logout-btn" style="background:#ef4444;color:#fff;border:none;border-radius:6px;cursor:pointer;min-height:40px;padding:.4rem .75rem">Log out</button></nav><main id="content"></main>';
+document.getElementById('app').innerHTML=html;
+var path=app.router.current();
+var links=document.querySelectorAll('.nav a');
+for(var j=0;j<links.length;j++){links[j].className=links[j].getAttribute('href')==='#'+path?'active':'';}
+document.querySelector('[data-testid="logout-btn"]').addEventListener('click',async function(){await db.auth.signOut();});
+};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.views=app.views||{};
+app.views.dashboard={render:async function(){
+var c=document.getElementById('content');if(!c)return;
+c.innerHTML='';
+var payments=[],members=[];
+try{payments=await app.store.list(app.config.tables.payment);}catch(e){}
+try{members=await app.store.list(app.config.tables.member);}catch(e){}
+var monthNow=app.utils.date.monthKey(Date.now());
+var monthly=payments.filter(function(p){return app.utils.date.monthKey(p.paid_at)===monthNow;});
+var rev=app.utils.calc.sum(monthly,'amount');
+var html='<div class="view" data-testid="route-dashboard"><h2>Dashboard</h2>';
+html+=app.components.stat('Revenue (this month)','dash-revenue',app.utils.format.money(rev));
+html+='<h3 style="margin-top:1rem">Recent Members</h3><div>';
+html+=app.components.rows(members,'member-item',function(m){return '<strong>'+String(m.name||'').replace(/</g,'<')+'</strong>';});
+html+='</div></div>';
+c.innerHTML=html;
+}};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.views=app.views||{};
+app.views.members={render:async function(){
+var c=document.getElementById('content');if(!c)return;
+c.innerHTML='';
+var members=[],plans=[];
+try{members=await app.store.list(app.config.tables.member);}catch(e){}
+try{plans=await app.store.list(app.config.tables.plan);}catch(e){}
+var html='<div class="view" data-testid="route-members"><h2>Members</h2>';
+html+='<form class="form" data-testid="member-form" id="member-form">';
+html+='<input data-testid="member-name" placeholder="Name" required>';
+html+='<input data-testid="member-email" placeholder="Email" type="email">';
+html+='<input data-testid="member-dob" type="date" name="dob">';
+html+='<input data-testid="member-phone" placeholder="Phone">';
+html+='<button data-testid="member-submit" type="submit">Add Member</button></form>';
+html+='<div>'+app.components.rows(members,'member-item',function(m){return '<strong>'+String(m.name||'').replace(/</g,'<')+'</strong><span class="meta">'+String(m.email||'')+'</span>';})+'</div>';
+html+='<h3 style="margin-top:1rem">Plans</h3>';
+html+='<form class="form" data-testid="plan-form" id="plan-form">';
+html+='<input data-testid="plan-name" placeholder="Plan name" required>';
+html+='<input data-testid="plan-price" type="number" step="0.01" placeholder="Price" required>';
+html+='<input data-testid="plan-billing-cycle" placeholder="Billing cycle (e.g. monthly)">';
+html+='<button data-testid="plan-submit" type="submit">Add Plan</button></form>';
+html+='<div>'+app.components.rows(plans,'plan-item',function(p){return '<strong>'+String(p.name||'').replace(/</g,'<')+'</strong><span class="meta">$'+Number(p.price||0).toFixed(2)+'</span>';})+'</div></div>';
+c.innerHTML=html;
+c.querySelector('#member-form').addEventListener('submit',async function(e){e.preventDefault();var name=c.querySelector('[data-testid="member-name"]').value;if(!name)return;try{await app.store.create(app.config.tables.member,{name:name,email:c.querySelector('[data-testid="member-email"]').value,dob:c.querySelector('[data-testid="member-dob"]').value,phone:c.querySelector('[data-testid="member-phone"]').value});}catch(err){console.error('create member failed',err.message);return;}await app.views.members.render();});
+c.querySelector('#plan-form').addEventListener('submit',async function(e){e.preventDefault();var name=c.querySelector('[data-testid="plan-name"]').value;if(!name)return;try{await app.store.create(app.config.tables.plan,{name:name,price:Number(c.querySelector('[data-testid="plan-price"]').value),billing_cycle:c.querySelector('[data-testid="plan-billing-cycle"]').value});}catch(err){console.error('create plan failed',err.message);return;}await app.views.members.render();});
+}};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.views=app.views||{};
+app.views.classes={render:async function(){
+var c=document.getElementById('content');if(!c)return;
+c.innerHTML='';
+var items=[],trainers=[],attendance=[];
+try{items=await app.store.list(app.config.tables.class);}catch(e){}
+try{trainers=await app.store.list(app.config.tables.trainer);}catch(e){}
+try{attendance=await app.store.list(app.config.tables.attendance);}catch(e){}
+var tOpts=trainers.map(function(t){return '<option value="'+t.id+'">'+String(t.name||'').replace(/</g,'<')+'</option>';}).join('');
+var rowsHtml='';
+for(var i=0;i<items.length;i++){var cl=items[i];var booked=attendance.filter(function(a){return a.class_id===cl.id;}).length;var occ=app.utils.calc.occupancy(booked,cl.capacity);rowsHtml+='<div class="row" data-testid="class-item" data-record-id="'+cl.id+'"><strong>'+String(cl.name||'').replace(/</g,'<')+'</strong><span class="meta">'+(cl.class_date?cl.class_date:'(no date)')+'</span><span class="pill" data-testid="class-occupancy">'+occ+'%</span></div>';}
+if(!items.length)rowsHtml='<p class="empty">No classes</p>';
+var html='<div class="view" data-testid="route-classes"><h2>Classes</h2>';
+html+='<form class="form" data-testid="class-form" id="class-form">';
+html+='<input data-testid="class-name" placeholder="Name" required>';
+html+='<select data-testid="class-trainer" name="trainer_id"><option value="">Select trainer</option>'+tOpts+'</select>';
+html+='<input data-testid="class-capacity" type="number" placeholder="Capacity" required>';
+html+='<input data-testid="class-date" type="date" name="class_date">';
+html+='<button data-testid="class-submit" type="submit">Add Class</button></form>';
+html+='<div>'+rowsHtml+'</div></div>';
+c.innerHTML=html;
+c.querySelector('#class-form').addEventListener('submit',async function(e){e.preventDefault();var name=c.querySelector('[data-testid="class-name"]').value;if(!name)return;try{await app.store.create(app.config.tables.class,{name:name,trainer_id:c.querySelector('[data-testid="class-trainer"]').value,capacity:Number(c.querySelector('[data-testid="class-capacity"]').value),class_date:c.querySelector('[data-testid="class-date"]').value});}catch(err){console.error('create class failed',err.message);return;}await app.views.classes.render();});
+}};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.views=app.views||{};
+app.views.trainers={render:async function(){
+var c=document.getElementById('content');if(!c)return;
+c.innerHTML='';
+var items=[];
+try{items=await app.store.list(app.config.tables.trainer);}catch(e){}
+var html='<div class="view" data-testid="route-trainers"><h2>Trainers</h2>';
+html+='<form class="form" data-testid="trainer-form" id="trainer-form">';
+html+='<input data-testid="trainer-name" placeholder="Name" required>';
+html+='<input data-testid="trainer-specialty" placeholder="Specialty">';
+html+='<input data-testid="trainer-weekly-hours" type="number" step="0.1" placeholder="Weekly hours" required>';
+html+='<button data-testid="trainer-submit" type="submit">Add Trainer</button></form>';
+html+='<div>'+app.components.rows(items,'trainer-item',function(t){return '<strong>'+String(t.name||'').replace(/</g,'<')+'</strong><span class="meta">'+String(t.specialty||'')+'</span>';})+'</div></div>';
+c.innerHTML=html;
+c.querySelector('#trainer-form').addEventListener('submit',async function(e){e.preventDefault();var name=c.querySelector('[data-testid="trainer-name"]').value;if(!name)return;try{await app.store.create(app.config.tables.trainer,{name:name,specialty:c.querySelector('[data-testid="trainer-specialty"]').value,weekly_hours:Number(c.querySelector('[data-testid="trainer-weekly-hours"]').value)});}catch(err){console.error('create trainer failed',err.message);return;}await app.views.trainers.render();});
+}};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.views=app.views||{};
+app.views.attendance={render:async function(){
+var c=document.getElementById('content');if(!c)return;
+c.innerHTML='';
+var items=[],members=[],classes=[];
+try{items=await app.store.list(app.config.tables.attendance);}catch(e){}
+try{members=await app.store.list(app.config.tables.member);}catch(e){}
+try{classes=await app.store.list(app.config.tables.class);}catch(e){}
+var mOpts=members.map(function(m){return '<option value="'+m.id+'">'+String(m.name||'').replace(/</g,'<')+'</option>';}).join('');
+var cOpts=classes.map(function(cl){return '<option value="'+cl.id+'">'+String(cl.name||'').replace(/</g,'<')+'</option>';}).join('');
+var html='<div class="view" data-testid="route-attendance"><h2>Attendance</h2>';
+html+='<form class="form" data-testid="attendance-form" id="attendance-form">';
+html+='<select data-testid="attendance-member" name="member_id"><option value="">Select member</option>'+mOpts+'</select>';
+html+='<select data-testid="attendance-class" name="class_id"><option value="">Select class</option>'+cOpts+'</select>';
+html+='<input data-testid="attendance-check-in" type="datetime-local" name="check_in_ts">';
+html+='<button data-testid="attendance-submit" type="submit">Check In</button></form>';
+html+='<div>'+app.components.rows(items,'attendance-item',function(a){var m=members.find(function(x){return x.id===a.member_id;});return '<strong>'+(m?m.name:'—')+'</strong>';})+'</div></div>';
+c.innerHTML=html;
+c.querySelector('#attendance-form').addEventListener('submit',async function(e){e.preventDefault();var mId=c.querySelector('[data-testid="attendance-member"]').value;if(!mId)return;try{await app.store.create(app.config.tables.attendance,{member_id:mId,class_id:c.querySelector('[data-testid="attendance-class"]').value,check_in_ts:c.querySelector('[data-testid="attendance-check-in"]').value});}catch(err){console.error('create attendance failed',err.message);return;}await app.views.attendance.render();});
+}};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.views=app.views||{};
+app.views.payments={render:async function(){
+var c=document.getElementById('content');if(!c)return;
+c.innerHTML='';
+var items=[],invoices=[];
+try{items=await app.store.list(app.config.tables.payment);}catch(e){}
+try{invoices=await app.store.list(app.config.tables.invoice);}catch(e){}
+var iOpts=invoices.map(function(inv){return '<option value="'+inv.id+'">Invoice '+String(inv.number||inv.id||'').slice(0,8)+'</option>';}).join('');
+var html='<div class="view" data-testid="route-payments"><h2>Payments</h2>';
+html+='<form class="form" data-testid="payment-screen-form" id="payment-screen-form">';
+html+='<select data-testid="payment-screen-invoice" name="invoice_id"><option value="">Select invoice</option>'+iOpts+'</select>';
+html+='<input data-testid="payment-screen-amount" type="number" step="0.01" placeholder="Amount" required>';
+html+='<button data-testid="payment-screen-submit" type="submit">Record Payment</button></form>';
+html+='<div>'+app.components.rows(items,'payment-item',function(p){return '<strong>$'+Number(p.amount||0).toFixed(2)+'</strong>';})+'</div></div>';
+c.innerHTML=html;
+c.querySelector('#payment-screen-form').addEventListener('submit',async function(e){e.preventDefault();var invId=c.querySelector('[data-testid="payment-screen-invoice"]').value;if(!invId)return;var amt=c.querySelector('[data-testid="payment-screen-amount"]').value;if(!amt)return;try{await app.store.create(app.config.tables.payment,{invoice_id:invId,amount:Number(amt)});}catch(err){console.error('create payment failed',err.message);return;}await app.views.payments.render();});
+}};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.views=app.views||{};
+app.views.invoices={render:async function(){
+var c=document.getElementById('content');if(!c)return;
+c.innerHTML='';
+var invs=[],members=[],plans=[],memberships=[],allPayments=[];
+try{invs=await app.store.list(app.config.tables.invoice);}catch(e){}
+try{members=await app.store.list(app.config.tables.member);}catch(e){}
+try{plans=await app.store.list(app.config.tables.plan);}catch(e){}
+try{memberships=await app.store.list(app.config.tables.membership);}catch(e){}
+try{allPayments=await app.store.list(app.config.tables.payment);}catch(e){}
+var mOpts=members.map(function(m){return '<option value="'+m.id+'">'+String(m.name||'').replace(/</g,'<')+'</option>';}).join('');
+var invOpts=invs.map(function(inv){return '<option value="'+inv.id+'">'+String(inv.number||inv.id||'').slice(0,8)+'</option>';}).join('');
+var pOpts=plans.map(function(p){return '<option value="'+p.id+'">'+String(p.name||'').replace(/</g,'<')+'</option>';}).join('');
+var rowsHtml='';
+for(var i=0;i<invs.length;i++){var inv=invs[i];var lineItems=memberships.filter(function(m){return m.invoice_id===inv.id;});var total=0;for(var l=0;l<lineItems.length;l++){var pl=plans.find(function(p){return p.id===lineItems[l].plan_id;});total+=Number(pl?pl.price:0);}var invPayments=allPayments.filter(function(p){return p.invoice_id===inv.id;});var paid=app.utils.calc.sum(invPayments,'amount');var bal=total-paid;var status=total<=0.001?'draft':(bal<=0.001?'paid':'unpaid');rowsHtml+='<div class="row" data-testid="invoice-item" data-record-id="'+inv.id+'"><div><strong>Invoice</strong> <span class="pill '+status+'">'+status+'</span><div class="meta">Total <span data-testid="invoice-total">'+total.toFixed(2)+'</span> | Balance <span data-testid="invoice-balance">'+bal.toFixed(2)+'</span></div></div><button data-testid="invoice-pay" data-inv="'+inv.id+'" style="background:#22c55e;color:#fff;border:none;border-radius:6px;cursor:pointer;min-height:40px;padding:.4rem .75rem">Pay</button></div>';}
+if(!invs.length)rowsHtml='<p class="empty">No invoices</p>';
+var paymentsHtml=allPayments.map(function(p){return '<span data-testid="payment-amount-cell">'+Number(p.amount||0).toFixed(2)+'</span>';}).join(' ');
+var html='<div class="view" data-testid="route-invoices"><h2>Invoices</h2>';
+html+='<form class="form" data-testid="invoice-form" id="invoice-form">';
+html+='<select data-testid="invoice-member" name="member_id"><option value="">Select member</option>'+mOpts+'</select>';
+html+='<button data-testid="invoice-submit" type="submit">Create Invoice</button></form>';
+html+='<form class="form" data-testid="line-form" id="line-form">';
+html+='<select data-testid="line-invoice" name="invoice_id"><option value="">Select invoice</option>'+invOpts+'</select>';
+html+='<select data-testid="line-plan" name="plan_id"><option value="">Select plan</option>'+pOpts+'</select>';
+html+='<button data-testid="line-submit" type="submit">Add Line Item</button></form>';
+html+='<div>'+rowsHtml+'</div>';
+html+='<div data-testid="payment-form" id="payment-form" style="display:none;margin-top:1rem;padding:1rem;background:#fff;border-radius:8px"><h3>Record Payment</h3><input data-testid="payment-amount" type="number" step="0.01" placeholder="Amount" style="padding:.5rem;border:1px solid #cbd5e1;border-radius:6px;min-height:40px;font-size:16px;width:100%;margin-bottom:.5rem"><button data-testid="payment-submit" style="background:#22c55e;color:#fff;border:none;border-radius:6px;cursor:pointer;min-height:40px;padding:.5rem 1rem;width:100%">Submit Payment</button></div>';
+html+='<div id="payments-list" style="display:none">'+paymentsHtml+'</div>';
+html+='</div>';
+c.innerHTML=html;
+var payForm=c.querySelector('#payment-form');
+c.querySelector('#invoice-form').addEventListener('submit',async function(e){e.preventDefault();var mId=c.querySelector('[data-testid="invoice-member"]').value;if(!mId)return;try{await app.store.create(app.config.tables.invoice,{member_id:mId,number:'INV-'+Date.now(),status:'unpaid'});}catch(err){console.error('create invoice failed',err.message);return;}await app.views.invoices.render();});
+c.querySelector('#line-form').addEventListener('submit',async function(e){e.preventDefault();var invId=c.querySelector('[data-testid="line-invoice"]').value;if(!invId)return;var plId=c.querySelector('[data-testid="line-plan"]').value;if(!plId)return;var inv=invs.find(function(x){return x.id===invId;});if(!inv)return;try{await app.store.create(app.config.tables.membership,{member_id:inv.member_id,plan_id:plId,invoice_id:invId,status:'active'});}catch(err){console.error('create membership failed',err.message);return;}await app.views.invoices.render();});
+c.querySelectorAll('[data-testid="invoice-pay"]').forEach(function(btn){btn.addEventListener('click',function(){window.__payInvId=btn.getAttribute('data-inv');payForm.style.display='block';});});
+c.querySelector('[data-testid="payment-submit"]').addEventListener('click',async function(){var amt=c.querySelector('[data-testid="payment-amount"]').value;if(!amt||!window.__payInvId)return;try{await app.store.create(app.config.tables.payment,{invoice_id:window.__payInvId,amount:Number(amt)});}catch(err){console.error('create payment failed',err.message);return;}await app.views.invoices.render();});
+}};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.views=app.views||{};
+app.views.reports={render:async function(){
+var c=document.getElementById('content');if(!c)return;
+c.innerHTML='';
+var invoices=[],payments=[],members=[],equipment=[],tasks=[];
+try{invoices=await app.store.list(app.config.tables.invoice);}catch(e){}
+try{payments=await app.store.list(app.config.tables.payment);}catch(e){}
+try{members=await app.store.list(app.config.tables.member);}catch(e){}
+try{equipment=await app.store.list(app.config.tables.equipment);}catch(e){}
+try{tasks=await app.store.list(app.config.tables.task);}catch(e){}
+var revenue=app.utils.calc.sum(payments,'amount');
+var html='<div class="view" data-testid="route-reports"><h2>Reports</h2>';
+html+=app.components.stat('Total Invoices','report-invoice-count',invoices.length);
+html+=app.components.stat('Total Revenue','report-revenue',app.utils.format.money(revenue));
+html+=app.components.stat('Total Members','report-member-count',members.length);
+html+='<h3 style="margin-top:1rem">Equipment</h3>';
+html+='<form class="form" data-testid="equipment-form" id="equipment-form">';
+html+='<input data-testid="equipment-name" placeholder="Name" required>';
+html+='<input data-testid="equipment-quantity" type="number" placeholder="Quantity" required>';
+html+='<input data-testid="equipment-unit" placeholder="Unit">';
+html+='<button data-testid="equipment-submit" type="submit">Add Equipment</button></form>';
+html+='<div>'+app.components.rows(equipment,'equipment-item',function(eq){return '<strong>'+String(eq.name||'').replace(/</g,'<')+'</strong><span class="meta">'+Number(eq.quantity||0)+' '+(eq.unit||'')+'</span>';})+'</div>';
+html+='<h3 style="margin-top:1rem">Tasks</h3>';
+html+='<form class="form" data-testid="task-form" id="task-form">';
+html+='<input data-testid="task-title" placeholder="Title" required>';
+html+='<input data-testid="task-due-date" type="date" name="due_date">';
+html+='<button data-testid="task-submit" type="submit">Add Task</button></form>';
+html+='<div>'+app.components.rows(tasks,'task-item',function(t){return '<strong>'+String(t.title||'').replace(/</g,'<')+'</strong>';})+'</div>';
+html+='<div data-testid="report-content">Revenue by month and class occupancy are computed from paid invoices and attendance.</div></div>';
+c.innerHTML=html;
+c.querySelector('#equipment-form').addEventListener('submit',async function(e){e.preventDefault();var name=c.querySelector('[data-testid="equipment-name"]').value;if(!name)return;try{await app.store.create(app.config.tables.equipment,{name:name,quantity:Number(c.querySelector('[data-testid="equipment-quantity"]').value),unit:c.querySelector('[data-testid="equipment-unit"]').value});}catch(err){console.error('create equipment failed',err.message);return;}await app.views.reports.render();});
+c.querySelector('#task-form').addEventListener('submit',async function(e){e.preventDefault();var title=c.querySelector('[data-testid="task-title"]').value;if(!title)return;try{await app.store.create(app.config.tables.task,{title:title,due_date:c.querySelector('[data-testid="task-due-date"]').value});}catch(err){console.error('create task failed',err.message);return;}await app.views.reports.render();});
+}};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.renderAuth=function(){
+document.getElementById('app').innerHTML='<div class="auth" data-testid="auth-view">'+
+'<div data-testid="login-form"><h2>Log in</h2>'+
+'<input data-testid="login-email" type="email" placeholder="Email" autocomplete="email">'+
+'<input data-testid="login-password" type="password" placeholder="Password" autocomplete="current-password">'+
+'<button data-testid="login-submit">Log in</button></div>'+
+'<div data-testid="signup-form" style="margin-top:1rem"><h2>Sign up</h2>'+
+'<input data-testid="signup-email" type="email" placeholder="Email" autocomplete="email">'+
+'<input data-testid="signup-password" type="password" placeholder="Password" autocomplete="new-password">'+
+'<button data-testid="signup-submit">Sign up</button>'+
+'<p class="notice" data-testid="signup-notice" style="display:none"></p></div></div>';
+var ls=document.querySelector('[data-testid="login-submit"]');
+ls.addEventListener('click',async function(){
+var email=document.querySelector('[data-testid="login-email"]').value;
+var pw=document.querySelector('[data-testid="login-password"]').value;
+try{var res=await db.auth.signInWithPassword({email:email,password:pw});if(res.error)throw res.error;if(res.data.session){await app.refreshAuthData(res.data.session);}else{throw new Error('No session');}}catch(e){var n=document.querySelector('[data-testid="signup-notice"]');n.textContent='Login failed: '+(e.message||e);n.style.display='block';}});
+var ss=document.querySelector('[data-testid="signup-submit"]');
+ss.addEventListener('click',async function(){
+var email=document.querySelector('[data-testid="signup-email"]').value;
+var pw=document.querySelector('[data-testid="signup-password"]').value;
+var n=document.querySelector('[data-testid="signup-notice"]');
+try{var res=await db.auth.signUp({email:email,password:pw});if(res.error)throw res.error;if(res.data.session){await app.refreshAuthData(res.data.session);}else{n.textContent='Account created. Check your email to confirm, then log in.';n.style.display='block';}}catch(e){n.textContent='Sign up: '+(e.message||e);n.style.display='block';}});
+};
+})(window.app=window.app||{});
+</script>
+<script>
+(function(app){
+app.session=null;
+app.refreshAuthData=async function(session){
+app.session=session;
+if(!session){app.renderAuth();return;}
+app.renderLayout();
+await app.router.dispatch();
+};
+app.router.on('/dashboard',async function(){await app.views.dashboard.render();});
+app.router.on('/members',async function(){await app.views.members.render();});
+app.router.on('/classes',async function(){await app.views.classes.render();});
+app.router.on('/trainers',async function(){await app.views.trainers.render();});
+app.router.on('/attendance',async function(){await app.views.attendance.render();});
+app.router.on('/payments',async function(){await app.views.payments.render();});
+app.router.on('/invoices',async function(){await app.views.invoices.render();});
+app.router.on('/reports',async function(){await app.views.reports.render();});
+db.auth.onAuthStateChange((event, session) => setTimeout(() => app.refreshAuthData(session), 0));
+app.init=function(){window.addEventListener('hashchange',function(){app.router.dispatch();});};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',app.init);else app.init();
+})(window.app=window.app||{});
+</script>
+</body>
+</html>
+<!--kenji-preview-sha:e5b7e2f2253087b9-->
