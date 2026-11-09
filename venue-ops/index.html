@@ -94,7 +94,7 @@ app.utils.date={monthKey:function(d){var dt=new Date(d||Date.now());return dt.ge
 app.store={
 list:async function(table){var r=await db.from(table).select('*').order('created_at',{ascending:false});if(r.error)throw new Error(r.error.message);return r.data||[];},
 filter:async function(table,f){var q=db.from(table).select('*');for(var k in f){q=q.eq(k,f[k]);}var r=await q;if(r.error)throw new Error(r.error.message);return r.data||[];},
-create:async function(table,payload){var s=app.session;if(!s)throw new Error('no session');var body=Object.assign({owner_id:s.user.id},payload);var r=await db.from(table).insert(body).select().single();if(r.error)throw new Error(r.error.message);var data=r.data;var rb=await db.from(table).select('id').eq('id',data.id).single();if(rb.error||!rb.data)throw new Error('Read-back failed for '+data.id);return data;},
+create:async function(table,payload){var s=app.session;if(!s)throw new Error('no session');var clean={};for(var k in payload){var v=payload[k];clean[k]=(v===''||v==null)?null:v;}var body=Object.assign({owner_id:s.user.id},clean);var r=await db.from(table).insert(body).select().single();if(r.error)throw new Error(r.error.message);var data=r.data;var rb=await db.from(table).select('id').eq('id',data.id).single();if(rb.error||!rb.data)throw new Error('Read-back failed for '+data.id);return data;},
 update:async function(table,id,patch){var r=await db.from(table).update(patch).eq('id',id).select().single();if(r.error)throw new Error(r.error.message);return r.data;},
 remove:async function(table,id){var r=await db.from(table).delete().eq('id',id);if(r.error)throw new Error(r.error.message);}}
 })(window.app=window.app||{});
@@ -397,4 +397,4 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 </script>
 </body>
 </html>
-<!--kenji-preview-sha:bec8f6636c211f2e-->
+<!--kenji-preview-sha:471a3d54407c1384-->
