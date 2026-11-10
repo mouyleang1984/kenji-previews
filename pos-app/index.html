@@ -24,41 +24,504 @@
 .clear-btn{background:#ef4444;color:#fff;border:none;border-radius:8px;min-height:44px;font-size:1rem;cursor:pointer}
 .change{padding:.75rem;background:#dcfce7;color:#166534;border-radius:8px;margin-top:.5rem;font-size:1.2rem;font-weight:700}
 @media(max-width:640px){.pos-grid{grid-template-columns:1fr}}</style>
-<!-- kenji-testids: declared for the gate's manifest parity. These testids are built dynamically
-  at runtime (nav routes from config, keypad keys from a list), so the source-declaration scan
-  would only see the "nav-"/"key-" prefixes. Listing the full literals here lets the gate confirm
-  the tests reference only declared selectors (no invented [data-testid=...]). -->
-<!-- data-testid="nav-register" data-testid="nav-products" data-testid="nav-inventory" data-testid="nav-customers" data-testid="nav-sales" data-testid="nav-reports" data-testid="nav-suppliers" data-testid="nav-settings" data-testid="key-0" data-testid="key-1" data-testid="key-2" data-testid="key-3" data-testid="key-4" data-testid="key-5" data-testid="key-6" data-testid="key-7" data-testid="key-8" data-testid="key-9" data-testid="key-00" data-testid="key-clear" -->
+<!-- kenji-testids: declared for the gate's manifest parity. Built dynamically at runtime, so the
+  source-declaration scan only sees prefixes. Listing the full literals here lets the gate confirm
+  the tests reference only declared selectors. -->
+<!-- data-testid="nav-register" data-testid="nav-products" data-testid="nav-inventory" data-testid="nav-customers" data-testid="nav-sales" data-testid="nav-reports" data-testid="nav-suppliers" data-testid="nav-settings" data-testid="key-0" data-testid="key-1" data-testid="key-2" data-testid="key-3" data-testid="key-4" data-testid="key-5" data-testid="key-6" data-testid="key-7" data-testid="key-8" data-testid="key-9" data-testid="key-00" data-testid="key-clear" data-testid="auth-view" data-testid="login-form" data-testid="login-email" data-testid="login-password" data-testid="login-submit" data-testid="signup-form" data-testid="signup-email" data-testid="signup-password" data-testid="signup-submit" data-testid="signup-notice" data-testid="route-register" data-testid="route-products" data-testid="route-inventory" data-testid="route-customers" data-testid="route-sales" data-testid="route-reports" data-testid="route-suppliers" data-testid="route-settings" data-testid="add-to-cart" data-testid="cart-item" data-testid="cart-clear" data-testid="cart-subtotal" data-testid="cart-tax" data-testid="cart-total" data-testid="order-discount" data-testid="tender-display" data-testid="payment-method" data-testid="sale-customer" data-testid="complete-sale" data-testid="sale-error" data-testid="change-due" data-testid="keypad" data-testid="product-form" data-testid="product-name" data-testid="product-sku" data-testid="product-price" data-testid="product-stock" data-testid="product-category" data-testid="product-supplier" data-testid="product-submit" data-testid="product-item" data-testid="movement-count" data-testid="movement-item" data-testid="customer-form" data-testid="customer-name" data-testid="customer-email" data-testid="customer-phone" data-testid="customer-submit" data-testid="customer-item" data-testid="sale-item" data-testid="payment-item" data-testid="z-total" data-testid="report-content" data-testid="supplier-form" data-testid="supplier-name" data-testid="supplier-email" data-testid="supplier-submit" data-testid="supplier-item" data-testid="shift-form" data-testid="shift-tax-bps" data-testid="shift-starting-cash" data-testid="shift-submit" data-testid="shift-item" data-testid="no-shift" data-testid="logout-btn" -->
 </head>
 <body>
 <div id="app"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script>import { injectStyles } from '../kit/styles.js';
-import { createRouter } from '../kit/router.js';
-import { createAuth } from '../kit/auth.js';
-import { renderShell } from '../kit/shell.js';
-import db from './db.js';
-import { config } from './config.js';
-import { app } from './appContext.js';
-import { store } from './store.js';
-import { pos } from './pos.js';
-import { calc, date, dom } from './utils.js';
-import { components } from './components.js';
-import { renderAuth } from './auth.js';
-import registerView from './views/register.js';
-import productsView from './views/products.js';
-import inventoryView from './views/inventory.js';
-import customersView from './views/customers.js';
-import salesView from './views/sales.js';
-import reportsView from './views/reports.js';
-import suppliersView from './views/suppliers.js';
-import settingsView from './views/settings.js';
+<script>(function() {
+'use strict';
 
-app.db = db; app.config = config; app.pos = pos; app.store = store;
+// ============ KIT ============
+var MOBILE_CLAMP_CSS = '*{box-sizing:border-box}html,body{max-width:100%;overflow-x:hidden;margin:0;padding:0}img{max-width:100%;height:auto}';
+var BASE_CSS = [
+  ':root{--ink:#0f172a;--bg:#f8fafc;--card:#fff;--line:#cbd5e1;--muted:#64748b;--accent:#f59e0b;--ok:#16a34a;--err:#ef4444}',
+  'body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink)}',
+  '#app{min-height:100dvh}',
+  '.nav{display:flex;gap:.375rem;padding:.75rem;background:var(--ink);color:#fff;flex-wrap:wrap;align-items:center}',
+  '.nav a{color:#cbd5e1;cursor:pointer;text-decoration:none;padding:.5rem .75rem;border-radius:6px;min-height:44px;display:flex;align-items:center;font-size:.95rem}',
+  '.nav a:hover{background:#1e293b;color:#fff}',
+  '.nav a.active{background:var(--accent);color:var(--ink)}',
+  '.nav .spacer{flex:1}',
+  '.view{padding:1.25rem;max-width:1100px;margin:0 auto}',
+  '.view h2{margin-bottom:.75rem;font-size:1.4rem}',
+  '.form{display:grid;gap:.5rem;margin-bottom:1rem;padding:1rem;background:var(--card);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.08)}',
+  '.form input,.form select,.form textarea{padding:.5rem;border:1px solid var(--line);border-radius:6px;font-size:16px;min-height:44px}',
+  '.form button{padding:.5rem 1rem;background:var(--accent);color:var(--ink);border:none;border-radius:6px;cursor:pointer;min-height:44px;font-size:1rem}',
+  '.row{background:var(--card);padding:.75rem;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,.06);margin-bottom:.5rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap}',
+  '.row .meta{color:var(--muted);font-size:.85rem}',
+  '.stat{background:var(--card);padding:1rem;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:.75rem}',
+  '.stat .num{font-size:1.5rem;font-weight:700}',
+  '.empty{color:#94a3b8;font-style:italic;padding:.5rem}',
+  '.auth{max-width:420px;margin:2rem auto;padding:1.5rem;background:var(--card);border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.1)}',
+  '.auth h2{margin-bottom:.75rem}',
+  '.auth input{width:100%;padding:.5rem;border:1px solid var(--line);border-radius:6px;font-size:16px;min-height:44px}',
+  '.auth button{width:100%;padding:.6rem;background:var(--accent);color:var(--ink);border:none;border-radius:6px;cursor:pointer;min-height:44px;font-size:1rem;margin-top:.5rem}',
+  '.notice{padding:.5rem;background:#ecfdf5;color:#065f46;border-radius:6px;margin-top:.5rem}',
+  '.pill{padding:.15rem .5rem;border-radius:999px;font-size:.75rem;background:#e0e7ff;color:#3730a3}',
+  '.pill.completed,.pill.open{background:#dcfce7;color:#166534}',
+  '.pill.refunded{background:#fef3c7;color:#92400e}',
+  '.pill.closed{background:#f1f5f9;color:#475569}',
+  '.error{padding:.5rem;background:#fee2e2;color:#991b1b;border-radius:6px;margin-top:.5rem}',
+  '.btn-danger{background:var(--err);color:#fff;border:none;border-radius:6px;cursor:pointer;min-height:44px;padding:.4rem .75rem}',
+  '@media(max-width:640px){.view{padding:1rem}.nav{font-size:.85rem}.nav a{padding:.4rem .5rem}}'
+].join('\n');
+function injectStyles() {
+  if (document.getElementById('kenji-kit-styles')) return;
+  var el = document.createElement('style');
+  el.id = 'kenji-kit-styles';
+  el.textContent = MOBILE_CLAMP_CSS + '\n' + BASE_CSS;
+  document.head.appendChild(el);
+}
+
+var format = {
+  cents: function(n) { return '$' + (Number(n || 0) / 100).toFixed(2); },
+  num: function(n) { return String(Number(n || 0)); },
+  dayKey: function(d) { var dt = new Date(d || Date.now()); return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'); }
+};
+
+function norm(p) { return String(p || '').replace(/^\/+/, ''); }
+function createRouter(routes) {
+  var handlers = {};
+  var first = norm((routes && routes[0]) || '');
+  return {
+    on: function(path, fn) { handlers[norm(path)] = fn; },
+    go: function(path) { window.location.hash = '#/' + norm(path); },
+    current: function() { return window.location.hash.replace(/^#\/?/, '') || ''; },
+    dispatch: async function() { var path = this.current() || first; var fn = handlers[path] || handlers[first]; if (fn) await fn(); }
+  };
+}
+
+function clean(payload) {
+  var out = {};
+  for (var k in payload) { var v = payload[k]; out[k] = (v === '' || v == null) ? null : v; }
+  return out;
+}
+function createData(db, table, getSession) {
+  return {
+    list: async function() { var r = await db.from(table).select('*').order('created_at', { ascending: false }); if (r.error) throw new Error(r.error.message); return r.data || []; },
+    filter: async function(f) { var q = db.from(table).select('*'); for (var k in f) q = q.eq(k, f[k]); var r = await q; if (r.error) throw new Error(r.error.message); return r.data || []; },
+    get: async function(id) { var r = await db.from(table).select('*').eq('id', id).single(); if (r.error) throw new Error(r.error.message); return r.data; },
+    create: async function(payload) { var s = getSession(); if (!s) throw new Error('no session'); var body = Object.assign({ owner_id: s.user.id }, clean(payload)); var r = await db.from(table).insert(body).select().single(); if (r.error) throw new Error(r.error.message); var data = r.data; var rb = await db.from(table).select('id').eq('id', data.id).single(); if (rb.error || !rb.data) throw new Error('Read-back failed for ' + data.id); return data; },
+    update: async function(id, patch) { var r = await db.from(table).update(clean(patch)).eq('id', id).select().single(); if (r.error) throw new Error(r.error.message); return r.data; },
+    remove: async function(id) { var r = await db.from(table).delete().eq('id', id); if (r.error) throw new Error(r.error.message); }
+  };
+}
+
+function createAuth(db, hooks) {
+  var session = null;
+  var h = hooks || {};
+  function refresh(sess) { session = sess; if (!sess) { if (h.onSignedOut) h.onSignedOut(); return Promise.resolve(); } return h.onSignedIn ? h.onSignedIn(sess) : Promise.resolve(); }
+  db.auth.onAuthStateChange(function(event, sess) { if (event === 'INITIAL_SESSION') setTimeout(function() { refresh(sess); }, 0); });
+  return {
+    current: function() { return session; },
+    refresh: refresh,
+    signIn: async function(email, pw) { var r = await db.auth.signInWithPassword({ email: email, password: pw }); if (r.error) throw r.error; if (r.data.session) await refresh(r.data.session); else throw new Error('No session'); },
+    signUp: async function(email, pw) { var r = await db.auth.signUp({ email: email, password: pw }); if (r.error) throw r.error; if (r.data.session) await refresh(r.data.session); return r.data; },
+    signOut: async function() { await db.auth.signOut(); await refresh(null); }
+  };
+}
+
+function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+function shellPath(routes) { return (window.location.hash.replace(/^#\/?/, '') || String(routes[0] || '')).replace(/^\/+/, ''); }
+function renderShell(routes, onLogout) {
+  var nav = '';
+  for (var i = 0; i < routes.length; i++) nav += '<a data-testid="nav-' + routes[i] + '" href="#/' + routes[i] + '">' + cap(routes[i]) + '</a>';
+  document.getElementById('app').innerHTML = '<nav class="nav" data-testid="nav">' + nav + '<span class="spacer"></span><button class="btn-danger" data-testid="logout-btn">Log out</button></nav><main id="content"></main>';
+  var want = '#/' + shellPath(routes);
+  var links = document.querySelectorAll('.nav a');
+  for (var j = 0; j < links.length; j++) links[j].className = links[j].getAttribute('href') === want ? 'active' : '';
+  var lo = document.querySelector('[data-testid="logout-btn"]');
+  if (lo) lo.addEventListener('click', onLogout);
+}
+function activeLink(path) {
+  var want = '#/' + String(path || '').replace(/^\/+/, '');
+  var links = document.querySelectorAll('.nav a');
+  for (var j = 0; j < links.length; j++) links[j].className = links[j].getAttribute('href') === want ? 'active' : '';
+}
+
+// ============ POS ============
+var config = {
+  tables: { product:'pos_products', category:'pos_categories', supplier:'pos_suppliers', stockMovement:'pos_stock_movements', customer:'pos_customers', sale:'pos_sales', saleItem:'pos_sale_items', payment:'pos_payments', discount:'pos_discounts', shift:'pos_shifts' },
+  routes: ['register','products','inventory','customers','sales','reports','suppliers','settings']
+};
+
+var SUPABASE_URL = 'https://ohcyjurhonzdvkqoellw.supabase.co';
+var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oY3lqdXJob256ZHZrcW9lbGx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM5ODk1MzAsImV4cCI6MjEwOTU2NTUzMH0.vRWDn0qZI3-B2UW3m6r1OHohjjX5qVyqwkcc314iYwM';
+var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { autoRefreshToken: true, persistSession: true });
+
+var app = { format: format, utils: { format: format }, session: null, db: db, config: config, router: null, store: null, pos: null, components: {}, views: {} };
+
+var calc = {
+  lineTotal: function(qty, unitPriceCents, lineDiscountCents) { return Number(qty) * Number(unitPriceCents) - Number(lineDiscountCents || 0); },
+  saleTotals: function(lines, taxBps, orderDiscountCents) {
+    var sub = 0;
+    for (var i = 0; i < (lines || []).length; i++) sub += this.lineTotal(lines[i].qty, lines[i].unit_price_cents, lines[i].line_discount_cents);
+    var tax = Math.round(sub * Number(taxBps || 0) / 10000);
+    return { subtotal: sub, tax: tax, total: sub + tax - Number(orderDiscountCents || 0) };
+  },
+  sum: function(rows, field) { return (rows || []).reduce(function(s, r) { return s + Number(r[field] || 0); }, 0); }
+};
+var dateUtil = { dayKey: function(d) { var dt = new Date(d || Date.now()); return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'); } };
+var dom = { el: function(html) { var d = document.createElement('div'); d.innerHTML = html; return d.firstElementChild; } };
+app.utils.calc = calc; app.utils.date = dateUtil; app.utils.dom = dom;
+
+function layer(table) { return createData(db, table, function() { return app.session; }); }
+var store = {
+  list: function(table) { return layer(table).list(); },
+  filter: function(table, f) { return layer(table).filter(f); },
+  get: function(table, id) { return layer(table).get(id); },
+  create: function(table, payload) { return layer(table).create(payload); },
+  update: function(table, id, patch) { return layer(table).update(id, patch); },
+  remove: function(table, id) { return layer(table).remove(id); }
+};
+app.store = store;
+
+var components = {
+  field: function(label, testid, type) { return '<label>' + label + '</label><input data-testid="' + testid + '" name="' + testid + '" type="' + (type || 'text') + '">'; },
+  rows: function(items, testid, render) {
+    if (!items || !items.length) return '<p class="empty">No records</p>';
+    var h = '';
+    for (var i = 0; i < items.length; i++) h += '<div class="row" data-testid="' + testid + '" data-record-id="' + items[i].id + '">' + render(items[i]) + '</div>';
+    return h;
+  },
+  stat: function(label, testid, value) { return '<div class="stat"><div>' + label + '</div><div class="num" data-testid="' + testid + '">' + value + '</div></div>'; },
+  keypad: function() {
+    var keys = ['7','8','9','4','5','6','1','2','3','0','00','clear'];
+    var h = '';
+    for (var i = 0; i < keys.length; i++) h += '<button class="key" data-testid="key-' + keys[i] + '">' + keys[i] + '</button>';
+    return h;
+  }
+};
 app.components = components;
-app.utils.calc = calc; app.utils.date = date; app.utils.dom = dom;
+
+var pos = {
+  activeShift: async function() {
+    var r = await db.from('pos_shifts').select('*').eq('status','open').order('opened_at',{ascending:false}).limit(1);
+    if (r.error) throw new Error(r.error.message);
+    return (r.data || [])[0] || null;
+  },
+  completeSale: async function(cart, shift, tenderCents, method, customerId, orderDiscountCents) {
+    if (!cart || !cart.length) throw new Error('CART_EMPTY');
+    var s = app.session; if (!s) throw new Error('no session');
+    var lines = cart.map(function(l) { return { product_id: l.product_id, qty: Number(l.qty), unit_price_cents: Number(l.unit_price_cents), line_discount_cents: Number(l.line_discount_cents || 0) }; });
+    var totals = calc.saleTotals(lines, Number(shift.tax_bps || 0), Number(orderDiscountCents || 0));
+    if (Number(tenderCents) < totals.total) throw new Error('INSUFFICIENT_TENDER');
+    var saleBody = { owner_id: s.user.id, shift_id: shift.id || null, customer_id: customerId || null, subtotal_cents: totals.subtotal, tax_cents: totals.tax, order_discount_cents: Number(orderDiscountCents || 0), total_cents: totals.total, status: 'completed' };
+    var rs = await db.from('pos_sales').insert(saleBody).select().single(); if (rs.error) throw new Error(rs.error.message);
+    var sale = rs.data;
+    var rb = await db.from('pos_sales').select('id').eq('id', sale.id).single(); if (rb.error || !rb.data) throw new Error('Read-back failed for sale ' + sale.id);
+    for (var i = 0; i < lines.length; i++) {
+      var ln = lines[i]; var lt = ln.qty * ln.unit_price_cents - ln.line_discount_cents;
+      var ri = await db.from('pos_sale_items').insert({ owner_id: s.user.id, sale_id: sale.id, product_id: ln.product_id, qty: ln.qty, unit_price_cents: ln.unit_price_cents, line_discount_cents: ln.line_discount_cents, line_total_cents: lt }).select().single(); if (ri.error) throw new Error(ri.error.message);
+      var pg = await db.from('pos_products').select('id,stock').eq('id', ln.product_id).single(); if (pg.error) throw new Error(pg.error.message);
+      var newStock = Number(pg.data.stock || 0) - ln.qty;
+      var pu = await db.from('pos_products').update({ stock: newStock }).eq('id', ln.product_id); if (pu.error) throw new Error(pu.error.message);
+      var sm = await db.from('pos_stock_movements').insert({ owner_id: s.user.id, product_id: ln.product_id, sale_id: sale.id, delta: -ln.qty, reason: 'sale' }).select().single(); if (sm.error) throw new Error(sm.error.message);
+    }
+    var pp = await db.from('pos_payments').insert({ owner_id: s.user.id, sale_id: sale.id, method: method || 'cash', amount_cents: Number(tenderCents) }).select().single(); if (pp.error) throw new Error(pp.error.message);
+    return { sale: sale, change: Number(tenderCents) - totals.total, totals: totals };
+  },
+  refundSale: async function(saleId, method) {
+    var s = app.session; if (!s) throw new Error('no session');
+    var rs = await db.from('pos_sales').select('*').eq('id', saleId).single(); if (rs.error || !rs.data) throw new Error('sale not found');
+    var sale = rs.data; if (sale.status !== 'completed') throw new Error('ALREADY_REFUNDED');
+    var pp = await db.from('pos_payments').insert({ owner_id: s.user.id, sale_id: sale.id, method: method || 'refund', amount_cents: -Number(sale.total_cents) }).select().single(); if (pp.error) throw new Error(pp.error.message);
+    var items = await db.from('pos_sale_items').select('*').eq('sale_id', sale.id); if (items.error) throw new Error(items.error.message);
+    for (var i = 0; i < (items.data || []).length; i++) {
+      var it = items.data[i];
+      var pg = await db.from('pos_products').select('id,stock').eq('id', it.product_id).single(); if (pg.error) throw new Error(pg.error.message);
+      var newStock = Number(pg.data.stock || 0) + Number(it.qty);
+      var pu = await db.from('pos_products').update({ stock: newStock }).eq('id', it.product_id); if (pu.error) throw new Error(pu.error.message);
+      var sm = await db.from('pos_stock_movements').insert({ owner_id: s.user.id, product_id: it.product_id, sale_id: sale.id, delta: Number(it.qty), reason: 'refund' }).select().single(); if (sm.error) throw new Error(sm.error.message);
+    }
+    var su = await db.from('pos_sales').update({ status: 'refunded' }).eq('id', sale.id); if (su.error) throw new Error(su.error.message);
+    return { sale: sale };
+  }
+};
+app.pos = pos;
+
+function renderAuth() {
+  document.getElementById('app').innerHTML = '<div class="auth" data-testid="auth-view">' +
+    '<div data-testid="login-form"><h2>Log in</h2>' +
+    '<input data-testid="login-email" type="email" placeholder="Email" autocomplete="email">' +
+    '<input data-testid="login-password" type="password" placeholder="Password" autocomplete="current-password">' +
+    '<button data-testid="login-submit">Log in</button></div>' +
+    '<div data-testid="signup-form" style="margin-top:1rem"><h2>Sign up</h2>' +
+    '<input data-testid="signup-email" type="email" placeholder="Email" autocomplete="email">' +
+    '<input data-testid="signup-password" type="password" placeholder="Password" autocomplete="new-password">' +
+    '<button data-testid="signup-submit">Sign up</button>' +
+    '<p class="notice" data-testid="signup-notice" style="display:none"></p></div></div>';
+  document.querySelector('[data-testid="login-submit"]').addEventListener('click', async function() {
+    var email = document.querySelector('[data-testid="login-email"]').value;
+    var pw = document.querySelector('[data-testid="login-password"]').value;
+    try { await app.auth.signIn(email, pw); }
+    catch (e) { var n = document.querySelector('[data-testid="signup-notice"]'); n.textContent = 'Login failed: ' + (e.message || e); n.style.display = 'block'; }
+  });
+  document.querySelector('[data-testid="signup-submit"]').addEventListener('click', async function() {
+    var email = document.querySelector('[data-testid="signup-email"]').value;
+    var pw = document.querySelector('[data-testid="signup-password"]').value;
+    var n = document.querySelector('[data-testid="signup-notice"]');
+    try { var res = await app.auth.signUp(email, pw); if (!res.session) { n.textContent = 'Account created. Check your email to confirm, then log in.'; n.style.display = 'block'; } }
+    catch (e) { n.textContent = 'Sign up: ' + (e.message || e); n.style.display = 'block'; }
+  });
+}
+
+// ============ VIEWS ============
+var registerView = {
+  render: async function() {
+    var c = document.getElementById('content'); if (!c) return;
+    var gen = (app._routeGen = (app._routeGen || 0) + 1);
+    c.innerHTML = '<div class="view" data-testid="route-register"><h2>Register</h2><p class="empty">Loading...</p></div>';
+    var productsP = app.store.list(app.config.tables.product).catch(function() { return []; });
+    var shiftP = app.pos.activeShift().catch(function() { return null; });
+    var customersP = app.store.list(app.config.tables.customer).catch(function() { return []; });
+    var products = await productsP, shift = await shiftP, customers = await customersP;
+    if (gen !== app._routeGen) return;
+    activeLink('/register');
+    if (!shift) { c.innerHTML = '<div class="view" data-testid="route-register"><h2>Register</h2><p class="empty" data-testid="no-shift">No open shift. Open one in Settings to start ringing sales.</p></div>'; return; }
+    if (!app.__pos) app.__pos = { cart: [], tender: 0, method: 'cash', customer: null, orderDiscount: 0 };
+    app.__posProducts = products; app.__posShift = shift;
+    var html = '<div class="view" data-testid="route-register"><h2>Register</h2><div class="pos-grid">';
+    html += '<section class="pos-products"><h3>Products</h3><div class="prod-list">';
+    for (var i = 0; i < products.length; i++) { var p = products[i]; html += '<button class="prod-btn" data-testid="add-to-cart" data-pid="' + p.id + '">' + String(p.name || '').replace(/</g, '<') + '<span class="meta">' + app.utils.format.cents(p.price_cents) + '</span></button>'; }
+    if (!products.length) html += '<p class="empty">No products</p>';
+    html += '</div></section>';
+    html += '<section class="pos-cart"><h3>Cart</h3><div id="cart-lines"></div>';
+    html += '<div class="totals"><div>Subtotal: <span data-testid="cart-subtotal" data-cents="0">$0.00</span></div>';
+    html += '<div>Tax (' + (Number(shift.tax_bps || 0) / 100).toFixed(2) + '%): <span data-testid="cart-tax" data-cents="0">$0.00</span></div>';
+    html += '<div>Order discount (cents): <input data-testid="order-discount" type="number" value="0" style="width:90px;min-height:44px;font-size:16px;padding:.3rem"></div>';
+    html += '<div>Total: <strong data-testid="cart-total" data-cents="0">$0.00</strong></div></div>';
+    html += '<div class="keypad" data-testid="keypad">' + app.components.keypad() + '</div>';
+    html += '<div class="tender-area"><div>Tender: <span data-testid="tender-display" data-cents="0">$0.00</span></div>';
+    html += '<select data-testid="payment-method"><option value="cash">Cash</option><option value="card">Card</option></select>';
+    html += '<select data-testid="sale-customer"><option value="">Walk-in</option>' + customers.map(function(cu) { return '<option value="' + cu.id + '">' + String(cu.name || '').replace(/</g, '<') + '</option>'; }).join('') + '</select>';
+    html += '<button class="complete-btn" data-testid="complete-sale">Complete Sale</button>';
+    html += '<button class="clear-btn" data-testid="cart-clear">Clear Cart</button></div>';
+    html += '<div class="error" data-testid="sale-error" style="display:none"></div>';
+    html += '</section></div></div>';
+    c.innerHTML = html;
+    this.attachOuter();
+    this.refresh();
+  },
+  attachOuter: function() {
+    var c = document.getElementById('content'); if (!c) return; var self = this;
+    c.querySelectorAll('[data-testid="add-to-cart"]').forEach(function(btn) { btn.addEventListener('click', function() { var pid = btn.getAttribute('data-pid'); var p = (app.__posProducts || []).find(function(x) { return x.id === pid; }); if (!p) return; var line = app.__pos.cart.find(function(l) { return l.product_id === pid; }); if (line) { line.qty++; } else { app.__pos.cart.push({ product_id: pid, qty: 1, unit_price_cents: Number(p.price_cents), line_discount_cents: 0 }); } self.refresh(); }); });
+    c.querySelector('[data-testid="cart-clear"]').addEventListener('click', function() { app.__pos.cart = []; app.__pos.tender = 0; app.__pos.orderDiscount = 0; app.__pos.customer = null; self.resetTender(); c.querySelector('[data-testid="order-discount"]').value = 0; c.querySelector('[data-testid="sale-error"]').style.display = 'none'; var cd = c.querySelector('[data-testid="change-due"]'); if (cd) cd.remove(); self.refresh(); });
+    c.querySelector('[data-testid="order-discount"]').addEventListener('input', function() { app.__pos.orderDiscount = Number(this.value || 0); self.updateTotals(); });
+    c.querySelector('[data-testid="payment-method"]').addEventListener('change', function() { app.__pos.method = this.value; });
+    c.querySelector('[data-testid="sale-customer"]').addEventListener('change', function() { app.__pos.customer = this.value || null; });
+    c.querySelectorAll('.keypad .key').forEach(function(k) { k.addEventListener('click', function() { var d = k.getAttribute('data-testid').replace('key-', ''); if (d === 'clear') { app.__pos.tender = 0; } else if (d === '00') { app.__pos.tender = app.__pos.tender * 100; } else { app.__pos.tender = app.__pos.tender * 10 + Number(d); } self.updateTender(); }); });
+    c.querySelector('[data-testid="complete-sale"]').addEventListener('click', async function() {
+      var er = c.querySelector('[data-testid="sale-error"]'); er.style.display = 'none';
+      var old = c.querySelector('[data-testid="change-due"]'); if (old) old.remove();
+      if (!app.__pos.cart.length) { er.textContent = 'CART_EMPTY'; er.style.display = 'block'; return; }
+      var preLines = app.__pos.cart.map(function(l) { return { qty: l.qty, unit_price_cents: l.unit_price_cents, line_discount_cents: l.line_discount_cents || 0 }; });
+      var preTotals = app.utils.calc.saleTotals(preLines, app.__posShift.tax_bps, app.__pos.orderDiscount);
+      if (Number(app.__pos.tender) < preTotals.total) { er.textContent = 'INSUFFICIENT_TENDER'; er.style.display = 'block'; return; }
+      try {
+        var res = await app.pos.completeSale(app.__pos.cart, app.__posShift, app.__pos.tender, app.__pos.method, app.__pos.customer, app.__pos.orderDiscount);
+        window.__posLastSaleId = res.sale.id;
+        var cd = document.createElement('div'); cd.className = 'change'; cd.setAttribute('data-testid', 'change-due'); cd.setAttribute('data-cents', res.change); cd.textContent = 'Change due: ' + app.utils.format.cents(res.change); c.querySelector('.tender-area').appendChild(cd);
+        app.__pos.cart = []; app.__pos.tender = 0; app.__pos.orderDiscount = 0; app.__pos.customer = null;
+        self.resetTender(); c.querySelector('[data-testid="order-discount"]').value = 0; self.refresh();
+      } catch (e) { er.textContent = e.message; er.style.display = 'block'; console.error('complete sale failed', e.message); }
+    });
+  },
+  refresh: function() {
+    var c = document.getElementById('content'); if (!c || !app.__pos) return; var self = this; var cl = app.__pos.cart;
+    var h = '';
+    for (var i = 0; i < cl.length; i++) { var ln = cl[i]; var p = (app.__posProducts || []).find(function(x) { return x.id === ln.product_id; }); var lt = ln.qty * ln.unit_price_cents - (ln.line_discount_cents || 0);
+      h += '<div class="cart-line" data-testid="cart-item" data-pid="' + ln.product_id + '"><strong>' + (p ? String(p.name || '').replace(/</g, '<') : '?') + '</strong>';
+      h += '<span class="qty"><button data-testid="cart-dec-' + ln.product_id + '">-</button><span data-testid="cart-qty-' + ln.product_id + '">' + ln.qty + '</span><button data-testid="cart-inc-' + ln.product_id + '">+</button></span>';
+      h += '<input class="disc" data-testid="cart-discount-' + ln.product_id + '" type="number" value="' + (ln.line_discount_cents || 0) + '">';
+      h += '<span data-testid="cart-linetotal-' + ln.product_id + '" data-cents="' + lt + '">' + app.utils.format.cents(lt) + '</span></div>'; }
+    if (!cl.length) h = '<p class="empty">Cart empty</p>';
+    c.querySelector('#cart-lines').innerHTML = h;
+    c.querySelectorAll('.cart-line').forEach(function(row) { var pid = row.getAttribute('data-pid');
+      row.querySelector('[data-testid="cart-inc-' + pid + '"]').addEventListener('click', function() { var line = app.__pos.cart.find(function(l) { return l.product_id === pid; }); if (line) { line.qty++; } self.refresh(); });
+      row.querySelector('[data-testid="cart-dec-' + pid + '"]').addEventListener('click', function() { var line = app.__pos.cart.find(function(l) { return l.product_id === pid; }); if (line) { line.qty--; if (line.qty <= 0) { app.__pos.cart = app.__pos.cart.filter(function(l) { return l.product_id !== pid; }); } } self.refresh(); });
+      row.querySelector('[data-testid="cart-discount-' + pid + '"]').addEventListener('input', function() { var line = app.__pos.cart.find(function(l) { return l.product_id === pid; }); if (!line) return; line.line_discount_cents = Number(this.value || 0); var lt2 = line.qty * line.unit_price_cents - (line.line_discount_cents || 0); var ltEl = row.querySelector('[data-testid="cart-linetotal-' + pid + '"]'); ltEl.setAttribute('data-cents', lt2); ltEl.textContent = app.utils.format.cents(lt2); self.updateTotals(); });
+    });
+    this.updateTotals();
+  },
+  updateTotals: function() { var c = document.getElementById('content'); if (!c || !app.__pos) return; var lines = app.__pos.cart.map(function(l) { return { qty: l.qty, unit_price_cents: l.unit_price_cents, line_discount_cents: l.line_discount_cents || 0 }; }); var t = app.utils.calc.saleTotals(lines, app.__posShift.tax_bps, app.__pos.orderDiscount);
+    var sub = c.querySelector('[data-testid="cart-subtotal"]'); sub.setAttribute('data-cents', t.subtotal); sub.textContent = app.utils.format.cents(t.subtotal);
+    var tax = c.querySelector('[data-testid="cart-tax"]'); tax.setAttribute('data-cents', t.tax); tax.textContent = app.utils.format.cents(t.tax);
+    var tot = c.querySelector('[data-testid="cart-total"]'); tot.setAttribute('data-cents', t.total); tot.textContent = app.utils.format.cents(t.total); },
+  updateTender: function() { var c = document.getElementById('content'); if (!c) return; var td = c.querySelector('[data-testid="tender-display"]'); td.setAttribute('data-cents', app.__pos.tender); td.textContent = app.utils.format.cents(app.__pos.tender); },
+  resetTender: function() { app.__pos.tender = 0; this.updateTender(); }
+};
+
+var productsView = {
+  render: async function() {
+    var c = document.getElementById('content'); if (!c) return;
+    var gen = (app._routeGen = (app._routeGen || 0) + 1);
+    c.innerHTML = '';
+    var items = [], categories = [], suppliers = [];
+    try { items = await app.store.list(app.config.tables.product); } catch (e) {}
+    try { categories = await app.store.list(app.config.tables.category); } catch (e) {}
+    try { suppliers = await app.store.list(app.config.tables.supplier); } catch (e) {}
+    if (gen !== app._routeGen) return;
+    activeLink('/products');
+    var catOpts = categories.map(function(cat) { return '<option value="' + cat.id + '">' + String(cat.name || '').replace(/</g, '<') + '</option>'; }).join('');
+    var supOpts = suppliers.map(function(s) { return '<option value="' + s.id + '">' + String(s.name || '').replace(/</g, '<') + '</option>'; }).join('');
+    var html = '<div class="view" data-testid="route-products"><h2>Products</h2>';
+    html += '<form class="form" data-testid="product-form" id="product-form">';
+    html += '<input data-testid="product-name" placeholder="Name" required>';
+    html += '<input data-testid="product-sku" placeholder="SKU">';
+    html += '<input data-testid="product-price" type="number" placeholder="Price (cents)" required>';
+    html += '<input data-testid="product-stock" type="number" placeholder="Stock" required>';
+    html += '<select data-testid="product-category" name="category_id"><option value="">Category</option>' + catOpts + '</select>';
+    html += '<select data-testid="product-supplier" name="supplier_id"><option value="">Supplier</option>' + supOpts + '</select>';
+    html += '<button data-testid="product-submit" type="submit">Add Product</button></form>';
+    var rows = '';
+    for (var i = 0; i < items.length; i++) { var p = items[i]; rows += '<div class="row" data-testid="product-item" data-record-id="' + p.id + '"><div><strong>' + String(p.name || '').replace(/</g, '<') + '</strong><span class="meta">' + app.utils.format.cents(p.price_cents) + ' | stock <span data-testid="product-stock-' + p.id + '" data-stock="' + p.stock + '">' + p.stock + '</span></span></div></div>'; }
+    if (!items.length) rows = '<p class="empty">No products</p>';
+    html += '<div>' + rows + '</div></div>';
+    c.innerHTML = html;
+    c.querySelector('#product-form').addEventListener('submit', async function(e) { e.preventDefault(); var name = c.querySelector('[data-testid="product-name"]').value; if (!name) return; try { await app.store.create(app.config.tables.product, { name: name, sku: c.querySelector('[data-testid="product-sku"]').value, price_cents: Number(c.querySelector('[data-testid="product-price"]').value), stock: Number(c.querySelector('[data-testid="product-stock"]').value), category_id: c.querySelector('[data-testid="product-category"]').value, supplier_id: c.querySelector('[data-testid="product-supplier"]').value }); } catch (err) { console.error('create product failed', err.message); return; } await app.views.products.render(); });
+  }
+};
+
+var inventoryView = {
+  render: async function() {
+    var c = document.getElementById('content'); if (!c) return;
+    var gen = (app._routeGen = (app._routeGen || 0) + 1);
+    c.innerHTML = '';
+    var moves = [], products = [];
+    try { moves = await app.store.list(app.config.tables.stockMovement); } catch (e) {}
+    try { products = await app.store.list(app.config.tables.product); } catch (e) {}
+    if (gen !== app._routeGen) return;
+    activeLink('/inventory');
+    var html = '<div class="view" data-testid="route-inventory"><h2>Inventory & Stock Movements</h2>';
+    html += '<div data-testid="movement-count">Movements: ' + moves.length + '</div>';
+    var rows = '';
+    for (var i = 0; i < moves.length; i++) { var m = moves[i]; var p = products.find(function(x) { return x.id === m.product_id; }); rows += '<div class="row" data-testid="movement-item" data-record-id="' + m.id + '" data-sale-id="' + (m.sale_id || '') + '" data-pid="' + m.product_id + '" data-delta="' + m.delta + '"><strong>' + (p ? String(p.name || '').replace(/</g, '<') : '?') + '</strong><span class="meta">' + (m.delta >= 0 ? '+' : '') + m.delta + ' (' + String(m.reason || '') + ')</span></div>'; }
+    if (!moves.length) rows = '<p class="empty">No stock movements</p>';
+    html += '<div>' + rows + '</div></div>';
+    c.innerHTML = html;
+  }
+};
+
+var customersView = {
+  render: async function() {
+    var c = document.getElementById('content'); if (!c) return;
+    var gen = (app._routeGen = (app._routeGen || 0) + 1);
+    c.innerHTML = '';
+    var items = [];
+    try { items = await app.store.list(app.config.tables.customer); } catch (e) {}
+    if (gen !== app._routeGen) return;
+    activeLink('/customers');
+    var html = '<div class="view" data-testid="route-customers"><h2>Customers</h2>';
+    html += '<form class="form" data-testid="customer-form" id="customer-form">';
+    html += '<input data-testid="customer-name" placeholder="Name" required>';
+    html += '<input data-testid="customer-email" type="email" placeholder="Email">';
+    html += '<input data-testid="customer-phone" placeholder="Phone">';
+    html += '<button data-testid="customer-submit" type="submit">Add Customer</button></form>';
+    html += '<div>' + app.components.rows(items, 'customer-item', function(cu) { return '<strong>' + String(cu.name || '').replace(/</g, '<') + '</strong><span class="meta">' + String(cu.email || '') + '</span>'; }) + '</div></div>';
+    c.innerHTML = html;
+    c.querySelector('#customer-form').addEventListener('submit', async function(e) { e.preventDefault(); var name = c.querySelector('[data-testid="customer-name"]').value; if (!name) return; try { await app.store.create(app.config.tables.customer, { name: name, email: c.querySelector('[data-testid="customer-email"]').value, phone: c.querySelector('[data-testid="customer-phone"]').value }); } catch (err) { console.error('create customer failed', err.message); return; } await app.views.customers.render(); });
+  }
+};
+
+var salesView = {
+  render: async function() {
+    var c = document.getElementById('content'); if (!c) return;
+    var gen = (app._routeGen = (app._routeGen || 0) + 1);
+    c.innerHTML = '';
+    var salesP = app.store.list(app.config.tables.sale).catch(function() { return []; });
+    var itemsP = app.store.list(app.config.tables.saleItem).catch(function() { return []; });
+    var paysP = app.store.list(app.config.tables.payment).catch(function() { return []; });
+    var sales = await salesP, items = await itemsP, payments = await paysP;
+    if (gen !== app._routeGen) return;
+    activeLink('/sales');
+    var rows = '';
+    for (var i = 0; i < sales.length; i++) { var s = sales[i]; var sItems = items.filter(function(it) { return it.sale_id === s.id; }); var sPays = payments.filter(function(p) { return p.sale_id === s.id; });
+      var payHtml = sPays.map(function(p) { return '<span data-testid="payment-item" data-cents="' + p.amount_cents + '" data-method="' + String(p.method || '') + '">' + (p.amount_cents >= 0 ? '+' : '') + app.utils.format.cents(p.amount_cents) + '</span>'; }).join(' ');
+      rows += '<div class="row" data-testid="sale-item" data-record-id="' + s.id + '"><div><strong>Sale</strong> <span class="pill ' + s.status + '">' + s.status + '</span><span class="meta">Total <span data-testid="sale-total-' + s.id + '" data-cents="' + s.total_cents + '">' + app.utils.format.cents(s.total_cents) + '</span></span><div class="meta" data-testid="sale-payments-' + s.id + '">Payments: ' + payHtml + '</div></div>' + (s.status === 'completed' ? '<button data-testid="sale-refund-' + s.id + '" class="btn-danger">Refund</button>' : '') + '</div>'; }
+    if (!sales.length) rows = '<p class="empty">No sales yet</p>';
+    var html = '<div class="view" data-testid="route-sales"><h2>Sales History</h2><div>' + rows + '</div></div>';
+    c.innerHTML = html;
+    c.querySelectorAll('[data-testid^="sale-refund-"]').forEach(function(btn) { var sid = btn.getAttribute('data-testid').replace('sale-refund-', ''); btn.addEventListener('click', async function() { btn.disabled = true; try { await app.pos.refundSale(sid, 'cash'); } catch (e) { console.error('refund failed', e.message); btn.disabled = false; return; } await app.views.sales.render(); }); });
+  }
+};
+
+var reportsView = {
+  render: async function() {
+    var c = document.getElementById('content'); if (!c) return;
+    var gen = (app._routeGen = (app._routeGen || 0) + 1);
+    c.innerHTML = '';
+    var payments = [], sales = [];
+    try { payments = await app.store.list(app.config.tables.payment); } catch (e) {}
+    try { sales = await app.store.list(app.config.tables.sale); } catch (e) {}
+    if (gen !== app._routeGen) return;
+    activeLink('/reports');
+    var day = dateUtil.dayKey(Date.now());
+    var dayPays = payments.filter(function(p) { return dateUtil.dayKey(p.created_at) === day; });
+    var zTotal = calc.sum(dayPays, 'amount_cents');
+    var byMethod = {};
+    for (var i = 0; i < dayPays.length; i++) { var m = String(dayPays[i].method || 'cash'); byMethod[m] = (byMethod[m] || 0) + Number(dayPays[i].amount_cents); }
+    var html = '<div class="view" data-testid="route-reports"><h2>Z-Report (' + day + ')</h2>';
+    html += '<div class="stat"><div>Day total (net)</div><div class="num" data-testid="z-total" data-cents="' + zTotal + '">' + app.utils.format.cents(zTotal) + '</div></div>';
+    html += '<h3 style="margin-top:1rem">Payment-method breakdown</h3><div id="z-methods">';
+    for (var method in byMethod) { html += '<div class="row" data-testid="z-method-' + method + '" data-cents="' + byMethod[method] + '"><strong>' + method + '</strong><span class="meta">' + app.utils.format.cents(byMethod[method]) + '</span></div>'; }
+    if (!dayPays.length) html += '<p class="empty">No payments today</p>';
+    html += '</div>';
+    html += '<div data-testid="report-content">Z-report total equals the sum of payments for the day; the breakdown by method sums exactly to it.</div></div>';
+    c.innerHTML = html;
+  }
+};
+
+var suppliersView = {
+  render: async function() {
+    var c = document.getElementById('content'); if (!c) return;
+    var gen = (app._routeGen = (app._routeGen || 0) + 1);
+    c.innerHTML = '';
+    var items = [];
+    try { items = await app.store.list(app.config.tables.supplier); } catch (e) {}
+    if (gen !== app._routeGen) return;
+    activeLink('/suppliers');
+    var html = '<div class="view" data-testid="route-suppliers"><h2>Suppliers</h2>';
+    html += '<form class="form" data-testid="supplier-form" id="supplier-form">';
+    html += '<input data-testid="supplier-name" placeholder="Name" required>';
+    html += '<input data-testid="supplier-email" type="email" placeholder="Email">';
+    html += '<button data-testid="supplier-submit" type="submit">Add Supplier</button></form>';
+    html += '<div>' + app.components.rows(items, 'supplier-item', function(s) { return '<strong>' + String(s.name || '').replace(/</g, '<') + '</strong><span class="meta">' + String(s.email || '') + '</span>'; }) + '</div></div>';
+    c.innerHTML = html;
+    c.querySelector('#supplier-form').addEventListener('submit', async function(e) { e.preventDefault(); var name = c.querySelector('[data-testid="supplier-name"]').value; if (!name) return; try { await app.store.create(app.config.tables.supplier, { name: name, email: c.querySelector('[data-testid="supplier-email"]').value }); } catch (err) { console.error('create supplier failed', err.message); return; } await app.views.suppliers.render(); });
+  }
+};
+
+var settingsView = {
+  render: async function() {
+    var c = document.getElementById('content'); if (!c) return;
+    var gen = (app._routeGen = (app._routeGen || 0) + 1);
+    c.innerHTML = '';
+    var shifts = [];
+    try { shifts = await app.store.list(app.config.tables.shift); } catch (e) {}
+    if (gen !== app._routeGen) return;
+    activeLink('/settings');
+    var html = '<div class="view" data-testid="route-settings"><h2>Settings & Shifts</h2>';
+    html += '<form class="form" data-testid="shift-form" id="shift-form">';
+    html += '<label>Tax rate (basis points, 825 = 8.25%)</label><input data-testid="shift-tax-bps" type="number" placeholder="825" required>';
+    html += '<label>Starting cash (cents)</label><input data-testid="shift-starting-cash" type="number" placeholder="10000" required>';
+    html += '<button data-testid="shift-submit" type="submit">Open Shift</button></form>';
+    var rows = '';
+    for (var i = 0; i < shifts.length; i++) { var sh = shifts[i]; rows += '<div class="row" data-testid="shift-item" data-record-id="' + sh.id + '"><strong>Shift</strong> <span class="pill ' + sh.status + '">' + sh.status + '</span><span class="meta">tax ' + (Number(sh.tax_bps || 0) / 100).toFixed(2) + '% | start ' + app.utils.format.cents(sh.starting_cash_cents) + '</span></div>'; }
+    if (!shifts.length) rows = '<p class="empty">No shifts</p>';
+    html += '<div>' + rows + '</div></div>';
+    c.innerHTML = html;
+    c.querySelector('#shift-form').addEventListener('submit', async function(e) { e.preventDefault(); var bps = c.querySelector('[data-testid="shift-tax-bps"]').value; if (!bps) return; var cash = c.querySelector('[data-testid="shift-starting-cash"]').value; if (!cash) return; try { await app.store.create(app.config.tables.shift, { tax_bps: Number(bps), starting_cash_cents: Number(cash), status: 'open', opened_at: new Date().toISOString() }); } catch (err) { console.error('create shift failed', err.message); return; } await app.views.settings.render(); });
+  }
+};
+
 app.views = { register: registerView, products: productsView, inventory: inventoryView, customers: customersView, sales: salesView, reports: reportsView, suppliers: suppliersView, settings: settingsView };
 
+// ============ INIT ============
 app.router = createRouter(config.routes);
 app.router.on('/register', async function() { await registerView.render(); });
 app.router.on('/products', async function() { await productsView.render(); });
@@ -82,7 +545,7 @@ app.auth = createAuth(db, {
 
 injectStyles();
 window.addEventListener('hashchange', function() { app.router.dispatch(); });
-</script>
+})();</script>
 </body>
 </html>
-<!--kenji-preview-sha:37acbcff219035d8-->
+<!--kenji-preview-sha:9afd2fdb968b777f-->
