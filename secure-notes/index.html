@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head><meta name="artifact-sha" content=""><script>(function(){
+  if (window.__kenjiWriteGuard) return; window.__kenjiWriteGuard = true;
+  window.kenjiSupabaseUrl = "https://ohcyjurhonzdvkqoellw.supabase.co";
+  window.kenjiSupabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oY3lqdXJob256ZHZrcW9lbGx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM5ODk1MzAsImV4cCI6MjEwOTU2NTUzMH0.vRWDn0qZI3-B2UW3m6r1OHohjjX5qVyqwkcc314iYwM";
+  var TYPED = new RegExp("(date|time|_at|_on|amount|price|total|hours|quantity|count|minutes|seconds|age|budget|balance|rate|fee|cost|qty|number|year|salary|wage|discount|tax|tip)$", 'i');
+  var LIMIT = 30;
+  var originalFetch = window.fetch.bind(window);
+  var writeTimes = [];
+  function bucket(){ var now=Date.now(); writeTimes=writeTimes.filter(function(t){return now-t<60000;}); writeTimes.push(now); return writeTimes.length; }
+  window.fetch = function(input, init){
+    try {
+      var url = typeof input === 'string' ? input : (input && input.url) || '';
+      var method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+      if ((method === 'POST' || method === 'PATCH') && /\/rest\/v1\//.test(url)) {
+        var table = url.split('/rest/v1/')[1].split('?')[0];
+        // Rate limit per session.
+        if (bucket() > LIMIT) {
+          return Promise.resolve(new Response(JSON.stringify({ code:'RATE_LIMITED', message:'write rate limit exceeded' }), { status:429, headers:{'Content-Type':'application/json'} }));
+        }
+        if (table === 'app_errors') return originalFetch(input, init);
+        var body = init && init.body;
+        if (typeof body === 'string' && body.length > 65536) return Promise.resolve(new Response(JSON.stringify({code:'PAYLOAD_TOO_LARGE'}),{status:413,headers:{'Content-Type':'application/json'}}));
+        if (body) {
+          var obj; try { obj = JSON.parse(body); } catch(e){ obj = null; }
+          if (obj) {
+            var rows = Array.isArray(obj) ? obj : [obj];
+            if (rows.length > 100) return Promise.resolve(new Response(JSON.stringify({code:'ROW_CAP_EXCEEDED'}),{status:400,headers:{'Content-Type':'application/json'}}));
+            for (var i=0;i<rows.length;i++){
+              for (var k in rows[i]) {
+                if (rows[i].hasOwnProperty(k) && TYPED.test(k) && rows[i][k] === '') {
+                  var code = /date|time|_at|_on|year/.test(k) ? 'INVALID_DATE' : 'INVALID_NUMBER';
+                  return Promise.resolve(new Response(JSON.stringify({ code:code, message:k+' must not be empty' }), { status:400, headers:{'Content-Type':'application/json'} }));
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch(e){}
+    return originalFetch(input, init);
+  };
+})();
+</script><script>(function(){
+  if (window.__kenjiErrorHook) return; window.__kenjiErrorHook = true;
+  var URL = "https://ohcyjurhonzdvkqoellw.supabase.co";
+  var KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oY3lqdXJob256ZHZrcW9lbGx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM5ODk1MzAsImV4cCI6MjEwOTU2NTUzMH0.vRWDn0qZI3-B2UW3m6r1OHohjjX5qVyqwkcc314iYwM";
+  function post(message, stack, type){
+    if (!URL || !KEY) return Promise.reject(new Error('Error capture database is not configured'));
+    var token = crypto.randomUUID();
+    var payload = { probe_token: token, message: String(message).slice(0,500), stack: String(stack||'').slice(0,2000), url: location.href.slice(0,2000), viewport: window.innerWidth+'x'+window.innerHeight, user_agent: navigator.userAgent.slice(0,500), error_type: type, created_at: new Date().toISOString() };
+    return fetch(URL + '/rest/v1/app_errors', { method:'POST', headers:{'Content-Type':'application/json','apikey':KEY}, body: JSON.stringify(payload) }).then(function(r){
+      if (!r.ok) throw new Error('Error capture HTTP '+r.status);
+      return fetch(URL + '/rest/v1/app_errors?probe_token=eq.'+encodeURIComponent(token)+'&select=id,message&limit=1', {headers:{apikey:KEY,'x-kenji-error-token':token}});
+    }).then(function(r){if(!r.ok)throw new Error('Error read-back HTTP '+r.status);return r.json();});
+  }
+  window.addEventListener('error', function(e){ window.__kenjiLastErrorWrite = post(e.message, (e.error && e.error.stack) || e.filename + ':' + e.lineno, 'error'); window.__kenjiLastErrorWrite.catch(function(){}); });
+  window.addEventListener('unhandledrejection', function(e){ post('Unhandled rejection: ' + (e.reason && e.reason.message || e.reason), e.reason && e.reason.stack, 'unhandledrejection').catch(function(){}); });
+})();
+</script><meta name="kenji-health-built-at" content="2026-11-12T05:17:59.979Z"><meta name="artifact-sha" content=""><meta name="artifact-sha" content=""><meta name="artifact-sha" content=""><meta name="artifact-sha" content="">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<title>Secure Notes</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{--safe-top:env(safe-area-inset-top);--safe-right:env(safe-area-inset-right);--safe-bottom:env(safe-area-inset-bottom);--safe-left:env(safe-area-inset-left);}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;min-height:100dvh;background:#f5f5f7;color:#111;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+body{min-height:100dvh;padding:calc(16px + var(--safe-top)) calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left));overflow-x:hidden;}
+main{max-width:480px;margin:0 auto;width:100%;}
+.screen{width:100%;}
+.hidden{display:none !important;}
+h1{font-size:1.5rem;margin:0 0 16px;}
+form{display:flex;flex-direction:column;gap:12px;width:100%;}
+label{font-size:0.9rem;font-weight:600;}
+input,textarea,button{font-size:16px;min-height:44px;border-radius:8px;border:1px solid #ccc;padding:10px 12px;width:100%;max-width:100%;font-family:inherit;}
+textarea{min-height:88px;resize:vertical;}
+button{background:#0a0a0a;color:#fff;border:none;cursor:pointer;font-weight:600;}
+button:disabled{opacity:0.6;cursor:not-allowed;}
+button#signup-btn{background:#fff;color:#0a0a0a;border:1px solid #0a0a0a;}
+.error{color:#b00020;font-size:0.85rem;min-height:1.1em;word-break:break-word;}
+.status{color:#146c2e;font-size:0.85rem;min-height:1.1em;word-break:break-word;}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap;}
+header button{width:auto;padding:10px 16px;}
+#user-profile{font-size:0.9rem;word-break:break-all;flex:1;}
+.note-item{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:10px;max-width:100%;}
+.note-item h3{margin:0 0 6px;font-size:1rem;word-break:break-word;}
+.note-item p{margin:0 0 6px;white-space:pre-wrap;word-break:break-word;}
+.note-item time{font-size:0.75rem;color:#666;}
+.empty-state{color:#666;font-size:0.9rem;}
+#notes-loading{color:#666;font-size:0.9rem;margin-bottom:8px;}
+section{margin-bottom:20px;}
+</style>
+</head>
+<body>
+<main id="app">
+  <div id="login-screen" class="screen">
+    <h1>Secure Notes</h1>
+    <form id="login-form" novalidate>
+      <label for="email-input">Email</label>
+      <input id="email-input" name="email" type="email" autocomplete="email" required data-testid="email-input">
+      <label for="password-input">Password</label>
+      <input id="password-input" name="password" type="password" autocomplete="current-password" minlength="6" required data-testid="password-input">
+      <div id="auth-error" class="error" role="alert"></div>
+      <div id="auth-status" class="status" role="status"></div>
+      <button id="login-btn" type="submit" data-testid="login-flow">Log In</button>
+      <button id="signup-btn" type="button" data-testid="signup-flow">Sign Up</button>
+    </form>
+  </div>
+  <div id="dashboard-screen" class="screen hidden">
+    <header>
+      <div id="user-profile"></div>
+      <button id="logout-btn" type="button" data-testid="logout-flow">Log Out</button>
+    </header>
+    <section>
+      <form id="note-form" novalidate>
+        <label for="note-title">Title</label>
+        <input id="note-title" name="title" type="text" required data-testid="note-title">
+        <label for="note-body">Body</label>
+        <textarea id="note-body" name="body" data-testid="note-body"></textarea>
+        <div id="note-error" class="error" role="alert"></div>
+        <button id="save-btn" type="submit" data-testid="add-note-flow">Save Note</button>
+      </form>
+    </section>
+    <section>
+      <div id="notes-error" class="error" role="alert"></div>
+      <div id="notes-loading" class="hidden">Loading notes…</div>
+      <div id="notes-container"></div>
+    </section>
+  </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>(function () {
+  "use strict";
+
+  var SUPABASE_URL = "https://ohcyjurhonzdvkqoellw.supabase.co";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oY3lqdXJob256ZHZrcW9lbGx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM5ODk1MzAsImV4cCI6MjEwOTU2NTUzMH0.vRWDn0qZI3-B2UW3m6r1OHohjjX5qVyqwkcc314iYwM";
+
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { autoRefreshToken: true, persistSession: true }
+  });
+
+  window.app = window.app || {};
+
+  var dataVersion = 0;
+  var currentSession = null;
+
+  function qs(id) {
+    return document.getElementById(id);
+  }
+
+  function showScreen(name) {
+    var loginScreen = qs("login-screen");
+    var dashScreen = qs("dashboard-screen");
+    if (loginScreen) loginScreen.classList.toggle("hidden", name !== "login");
+    if (dashScreen) dashScreen.classList.toggle("hidden", name !== "dashboard");
+  }
+
+  function renderLoginScreen() {
+    showScreen("login");
+  }
+
+  function renderDashboardShell(session) {
+    showScreen("dashboard");
+    var profile = qs("user-profile");
+    if (profile && session && session.user) {
+      profile.textContent = session.user.email || "";
+    }
+  }
+
+  function setNotesLoading(isLoading) {
+    var el = qs("notes-loading");
+    if (el) el.classList.toggle("hidden", !isLoading);
+  }
+
+  function showListError(msg) {
+    var el = qs("notes-error");
+    if (el) el.textContent = msg || "";
+  }
+
+  function clearListError() {
+    showListError("");
+  }
+
+  function showNoteFormError(msg) {
+    var el = qs("note-error");
+    if (el) el.textContent = msg || "";
+  }
+
+  function clearNoteFormError() {
+    showNoteFormError("");
+  }
+
+  function renderNotes(notes) {
+    var container = qs("notes-container");
+    if (!container) return;
+    container.innerHTML = "";
+    if (!notes || notes.length === 0) {
+      var empty = document.createElement("p");
+      empty.className = "empty-state";
+      empty.textContent = "No notes yet. Create your first note above.";
+      container.appendChild(empty);
+      return;
+    }
+    notes.forEach(function (note) {
+      var row = document.createElement("div");
+      row.className = "note-item";
+      row.setAttribute("data-testid", "note-item");
+      row.setAttribute("data-record-id", note.id);
+      var h = document.createElement("h3");
+      h.textContent = note.title;
+      row.appendChild(h);
+      if (note.body) {
+        var p = document.createElement("p");
+        p.textContent = note.body;
+        row.appendChild(p);
+      }
+      var time = document.createElement("time");
+      try {
+        time.textContent = new Date(note.created_at).toLocaleString();
+      } catch (e) {
+        time.textContent = "";
+      }
+      row.appendChild(time);
+      container.appendChild(row);
+    });
+  }
+
+  window.app.refreshAuthData = function (session) {
+    dataVersion += 1;
+    var thisVersion = dataVersion;
+    currentSession = session;
+
+    var container = qs("notes-container");
+    clearListError();
+    clearNoteFormError();
+
+    if (!session) {
+      if (container) container.innerHTML = "";
+      setNotesLoading(false);
+      renderLoginScreen();
+      return Promise.resolve();
+    }
+
+    var prevUser = container.dataset.ownerId || "";
+    var newUser = (session && session.user && session.user.id) ? session.user.id : "";
+    if (prevUser && newUser && prevUser !== newUser) {
+      if (container) container.innerHTML = "";
+    }
+    if (newUser) container.dataset.ownerId = newUser;
+
+    renderDashboardShell(session);
+    setNotesLoading(true);
+
+    return db
+      .from("notes")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .then(function (res) {
+        if (thisVersion !== dataVersion) return;
+        if (res.error) {
+          showListError(res.error.message);
+          console.error("Failed to load notes", res.error);
+          return;
+        }
+        if (container) container.innerHTML = "";
+        renderNotes(res.data);
+      })
+      .catch(function (err) {
+        if (thisVersion !== dataVersion) return;
+        if (container) container.innerHTML = "";
+        showListError(err.message || "Failed to load notes.");
+        console.error("Failed to load notes", err);
+      })
+      .then(function () {
+        if (thisVersion === dataVersion) setNotesLoading(false);
+      });
+  };
+
+  db.auth.onAuthStateChange((event, session) => setTimeout(() => app.refreshAuthData(session), 0));
+
+  function wire() {
+    var loginForm = qs("login-form");
+    var emailInput = qs("email-input");
+    var passwordInput = qs("password-input");
+    var authError = qs("auth-error");
+    var authStatus = qs("auth-status");
+    var loginBtn = qs("login-btn");
+    var signupBtn = qs("signup-btn");
+    var logoutBtn = qs("logout-btn");
+    var noteForm = qs("note-form");
+    var noteTitle = qs("note-title");
+    var noteBody = qs("note-body");
+    var saveBtn = qs("save-btn");
+
+    function showAuthError(msg) {
+      if (authError) authError.textContent = msg || "";
+    }
+    function clearAuthError() {
+      showAuthError("");
+    }
+    function showAuthStatus(msg) {
+      if (authStatus) authStatus.textContent = msg || "";
+    }
+    function clearAuthStatus() {
+      showAuthStatus("");
+    }
+    function setAuthLoading(isLoading) {
+      if (loginBtn) {
+        loginBtn.disabled = isLoading;
+        loginBtn.textContent = isLoading ? "Logging in…" : "Log In";
+      }
+      if (signupBtn) signupBtn.disabled = isLoading;
+    }
+
+    if (loginForm) {
+      loginForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        clearAuthError();
+        clearAuthStatus();
+        var email = (emailInput && emailInput.value || "").trim();
+        var password = passwordInput && passwordInput.value || "";
+        if (!email || !password) {
+          showAuthError("Email and password are required.");
+          return;
+        }
+        setAuthLoading(true);
+        db.auth
+          .signInWithPassword({ email: email, password: password })
+          .then(function (res) {
+            if (res.error) {
+              showAuthError(res.error.message);
+              return;
+            }
+            return window.app.refreshAuthData(res.data.session);
+          })
+          .catch(function (err) {
+            showAuthError(err.message || "Login failed.");
+          })
+          .then(function () {
+            setAuthLoading(false);
+          });
+      });
+    }
+
+    if (signupBtn) {
+      signupBtn.addEventListener("click", function () {
+        clearAuthError();
+        clearAuthStatus();
+        var email = (emailInput && emailInput.value || "").trim();
+        var password = passwordInput && passwordInput.value || "";
+        if (!email || !password) {
+          showAuthError("Email and password are required.");
+          return;
+        }
+        if (password.length < 6) {
+          showAuthError("Password must be at least 6 characters.");
+          return;
+        }
+        setAuthLoading(true);
+        db.auth
+          .signUp({ email: email, password: password })
+          .then(function (res) {
+            if (res.error) {
+              showAuthError(res.error.message);
+              return;
+            }
+            if (res.data && res.data.session) {
+              return window.app.refreshAuthData(res.data.session);
+            }
+            showAuthStatus("Account created. Check your email to confirm before logging in.");
+          })
+          .catch(function (err) {
+            showAuthError(err.message || "Sign up failed.");
+          })
+          .then(function () {
+            setAuthLoading(false);
+          });
+      });
+    }
+
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", function () {
+        logoutBtn.disabled = true;
+        db.auth
+          .signOut()
+          .then(function (res) {
+            if (res.error) {
+              console.error("Logout failed", res.error);
+            }
+          })
+          .catch(function (err) {
+            console.error("Logout failed", err);
+          })
+          .then(function () {
+            logoutBtn.disabled = false;
+          });
+      });
+    }
+
+    function setSaveLoading(isLoading) {
+      if (saveBtn) {
+        saveBtn.disabled = isLoading;
+        saveBtn.textContent = isLoading ? "Saving…" : "Save Note";
+      }
+    }
+
+    if (noteForm) {
+      noteForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        clearNoteFormError();
+        var title = (noteTitle && noteTitle.value || "").trim();
+        var bodyRaw = (noteBody && noteBody.value || "").trim();
+        var body = bodyRaw === "" ? null : bodyRaw;
+        if (!title) {
+          showNoteFormError("Title is required.");
+          return;
+        }
+        if (!currentSession) {
+          showNoteFormError("You must be logged in.");
+          return;
+        }
+        setSaveLoading(true);
+        db.from("notes")
+          .insert({ title: title, body: body })
+          .select()
+          .single()
+          .then(function (res) {
+            if (res.error) {
+              showNoteFormError(res.error.message);
+              console.error("Failed to create note", res.error);
+              return;
+            }
+            var newId = res.data.id;
+            return db
+              .from("notes")
+              .select("*")
+              .eq("id", newId)
+              .single()
+              .then(function (readRes) {
+                if (readRes.error) {
+                  showNoteFormError(readRes.error.message);
+                  console.error("Failed to verify created note", readRes.error);
+                  return;
+                }
+                window.__createdRecordId = newId;
+                if (noteTitle) noteTitle.value = "";
+                if (noteBody) noteBody.value = "";
+                return window.app.refreshAuthData(currentSession);
+              });
+          })
+          .catch(function (err) {
+            showNoteFormError(err.message || "Failed to create note.");
+            console.error("Failed to create note", err);
+          })
+          .then(function () {
+            setSaveLoading(false);
+          });
+      });
+    }
+
+    db.auth.getSession().then(function (res) {
+      window.app.refreshAuthData(res.data.session);
+    });
+
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "visible") {
+        db.auth.getSession().then(function (res) {
+          window.app.refreshAuthData(res.data.session);
+        });
+      }
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", wire);
+  } else {
+    wire();
+  }
+})();
+</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js').catch(function(){});});}</script>
+</body>
+</html>
+<!--kenji-preview-sha:48b036b24d2d72f4-->
