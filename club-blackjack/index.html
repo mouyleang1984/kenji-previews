@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head><meta name="kenji-health-built-at" content="2026-11-12T04:58:58.696Z">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<title>Club Blackjack</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{color-scheme:dark;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;width:100%;overflow-x:hidden;background:#06130a;color:#f1f1f1;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+body{min-height:100dvh;}
+#app{min-height:100dvh;display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
+.screen{display:none;flex:1;flex-direction:column;align-items:center;padding:16px;gap:12px;width:100%;max-width:480px;margin:0 auto;}
+.screen.active{display:flex;}
+h1{font-size:1.4rem;margin:8px 0;text-align:center;}
+.panel{background:#0e2016;border:1px solid #1f4a30;border-radius:12px;padding:16px;width:100%;}
+label{font-size:0.95rem;display:block;margin-bottom:6px;}
+input[type=number]{width:100%;font-size:16px;min-height:44px;padding:8px 10px;border-radius:8px;border:1px solid #2c5a3c;background:#071a10;color:#fff;}
+button{font-size:16px;min-height:44px;min-width:44px;padding:10px 16px;border-radius:10px;border:none;background:#2e8b57;color:#fff;cursor:pointer;font-weight:600;}
+button:disabled{opacity:0.4;cursor:not-allowed;}
+button:active{transform:scale(0.97);}
+.row{display:flex;gap:10px;width:100%;flex-wrap:wrap;}
+.row button{flex:1;}
+.error{color:#ff6b6b;font-size:0.9rem;min-height:1.2em;}
+.stat{display:flex;justify-content:space-between;font-size:0.95rem;padding:4px 0;border-bottom:1px solid #1f4a30;}
+.stat span:last-child{font-weight:700;}
+canvas{width:100%;max-width:420px;border-radius:14px;background:#0a2f1a;touch-action:manipulation;display:block;}
+.hand-row{display:flex;flex-direction:column;gap:4px;width:100%;}
+.hand-cards{font-size:1.3rem;letter-spacing:4px;min-height:1.8em;word-break:break-all;}
+#game-status-message{min-height:1.4em;font-size:0.95rem;color:#ffd966;text-align:center;}
+#round-result-text{font-size:1.1rem;font-weight:700;text-align:center;}
+.hint{font-size:0.8rem;color:#9bbf9b;text-align:center;}
+</style>
+</head>
+<body>
+<main id="app">
+
+  <section id="betting-screen" class="screen active">
+    <h1>&#9827; Club Blackjack &#9824;</h1>
+    <div class="panel">
+      <div class="stat"><span>Bankroll</span><span id="current-bankroll">$1000</span></div>
+      <div class="stat"><span>Current Bet</span><span id="bet-display">-</span></div>
+    </div>
+    <div class="panel">
+      <label for="bet-input">Place your bet ($)</label>
+      <input id="bet-input" data-testid="init-01" type="number" min="1" step="1" value="50" inputmode="numeric">
+      <div class="error" id="bet-error" role="alert"></div>
+      <button id="place-bet-button" data-testid="init-02">Place Bet</button>
+    </div>
+    <p class="hint">Enter to place bet. Arrow Up/Down to adjust bet.</p>
+  </section>
+
+  <section id="gameplay-screen" class="screen">
+    <h1>Club Blackjack</h1>
+    <canvas id="table-canvas" width="380" height="440" aria-label="Blackjack table"></canvas>
+    <div class="panel hand-row">
+      <div class="stat"><span>Dealer</span><span id="dealer-score">-</span></div>
+      <div class="hand-cards" id="dealer-hand-container">-</div>
+      <div class="stat"><span>You</span><span id="player-score">-</span></div>
+      <div class="hand-cards" id="player-hand-container">-</div>
+    </div>
+    <div id="game-status-message">Press Start to deal.</div>
+    <div class="row">
+      <button id="start-game-button" data-testid="play-01">Start</button>
+      <button id="hit-button" data-testid="play-02" disabled>Hit</button>
+      <button id="stand-button" data-testid="play-03" disabled>Stand</button>
+    </div>
+    <p class="hint">Keys: H = Hit, S = Stand</p>
+  </section>
+
+  <section id="result-screen" class="screen">
+    <h1>Round Result</h1>
+    <div class="panel">
+      <p id="round-result-text" data-testid="result-02">-</p>
+      <div class="stat"><span>Bankroll</span><span id="final-bankroll">$1000</span></div>
+    </div>
+    <button id="play-again-button" data-testid="result-01">Play Again</button>
+    <p class="hint">Enter to play again.</p>
+  </section>
+
+</main>
+<script>
+(function(){
+'use strict';
+
+var SUITS=['\u2660','\u2665','\u2666','\u2663'];
+var RANKS=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+var RED_SUITS=['\u2665','\u2666'];
+var STARTING_BANKROLL=1000;
+
+var state={
+  bankroll:STARTING_BANKROLL,
+  bet:0,
+  deck:[],
+  playerHand:[],
+  dealerHand:[],
+  dealerHoleHidden:true,
+  phase:'betting',
+  gameOver:false,
+  lastOutcome:''
+};
+
+var screens={
+  betting:document.getElementById('betting-screen'),
+  gameplay:document.getElementById('gameplay-screen'),
+  result:document.getElementById('result-screen')
+};
+
+var el={
+  betInput:document.getElementById('bet-input'),
+  betError:document.getElementById('bet-error'),
+  placeBetBtn:document.getElementById('place-bet-button'),
+  currentBankroll:document.getElementById('current-bankroll'),
+  betDisplay:document.getElementById('bet-display'),
+  startBtn:document.getElementById('start-game-button'),
+  hitBtn:document.getElementById('hit-button'),
+  standBtn:document.getElementById('stand-button'),
+  dealerScore:document.getElementById('dealer-score'),
+  playerScore:document.getElementById('player-score'),
+  dealerHand:document.getElementById('dealer-hand-container'),
+  playerHand:document.getElementById('player-hand-container'),
+  statusMsg:document.getElementById('game-status-message'),
+  resultText:document.getElementById('round-result-text'),
+  finalBankroll:document.getElementById('final-bankroll'),
+  playAgainBtn:document.getElementById('play-again-button'),
+  canvas:document.getElementById('table-canvas')
+};
+
+var ctx=el.canvas.getContext('2d');
+var currentScreenName='betting';
+
+function showScreen(name){
+  currentScreenName=name;
+  Object.keys(screens).forEach(function(k){
+    screens[k].classList.toggle('active', k===name);
+  });
+}
+
+function createDeck(){
+  var d=[];
+  for(var s=0;s<SUITS.length;s++){
+    for(var r=0;r<RANKS.length;r++){
+      d.push({rank:RANKS[r],suit:SUITS[s]});
+    }
+  }
+  return d;
+}
+
+function shuffle(d){
+  for(var i=d.length-1;i>0;i--){
+    var j=Math.floor(Math.random()*(i+1));
+    var t=d[i]; d[i]=d[j]; d[j]=t;
+  }
+  return d;
+}
+
+function drawCard(){
+  if(state.deck.length===0){ state.deck=shuffle(createDeck()); }
+  return state.deck.pop();
+}
+
+function computeScore(hand){
+  var score=0, aces=0;
+  for(var i=0;i<hand.length;i++){
+    var c=hand[i];
+    if(c.rank==='A'){ aces++; score+=11; }
+    else if(c.rank==='K'||c.rank==='Q'||c.rank==='J'){ score+=10; }
+    else { score+=parseInt(c.rank,10); }
+  }
+  while(score>21 && aces>0){ score-=10; aces--; }
+  return score;
+}
+
+function isBlackjack(hand){
+  return hand.length===2 && computeScore(hand)===21;
+}
+
+function cardLabel(c){ return c.rank+c.suit; }
+
+function fmt(n){ return '$'+n; }
+
+function updateBettingDisplays(){
+  el.currentBankroll.textContent=fmt(state.bankroll);
+  el.betDisplay.textContent = state.bet>0 ? fmt(state.bet) : '-';
+}
+
+function renderHands(){
+  if(state.playerHand.length===0){
+    el.playerHand.textContent='-';
+    el.playerScore.textContent='-';
+  } else {
+    el.playerHand.textContent=state.playerHand.map(cardLabel).join(' ');
+    el.playerScore.textContent=String(computeScore(state.playerHand));
+  }
+  if(state.dealerHand.length===0){
+    el.dealerHand.textContent='-';
+    el.dealerScore.textContent='-';
+  } else {
+    el.dealerHand.textContent=state.dealerHand.map(function(c,i){
+      return (i===1 && state.dealerHoleHidden) ? '\uD83C\uDCA0' : cardLabel(c);
+    }).join(' ');
+    el.dealerScore.textContent = state.dealerHoleHidden ? '?' : String(computeScore(state.dealerHand));
+  }
+}
+
+function setButtons(startEnabled,hitEnabled,standEnabled){
+  el.startBtn.disabled=!startEnabled;
+  el.hitBtn.disabled=!hitEnabled;
+  el.standBtn.disabled=!standEnabled;
+}
+
+function resetRoundState(){
+  state.deck=shuffle(createDeck());
+  state.playerHand=[];
+  state.dealerHand=[];
+  state.dealerHoleHidden=true;
+  state.phase='betting';
+}
+
+function goToBetting(){
+  resetRoundState();
+  state.bet=0;
+  el.betInput.value='50';
+  el.betError.textContent='';
+  updateBettingDisplays();
+  renderHands();
+  el.statusMsg.textContent='Press Start to deal.';
+  setButtons(false,false,false);
+  showScreen('betting');
+}
+
+function placeBet(){
+  var raw=el.betInput.value;
+  var amount=parseInt(raw,10);
+  el.betError.textContent='';
+  if(!raw || isNaN(amount) || amount<=0){
+    el.betError.textContent='Enter a valid bet amount greater than 0.';
+    return;
+  }
+  if(amount>state.bankroll){
+    el.betError.textContent='Bet cannot exceed your bankroll of '+fmt(state.bankroll)+'.';
+    return;
+  }
+  state.bet=amount;
+  updateBettingDisplays();
+  state.phase='ready';
+  el.statusMsg.textContent='Press Start to deal.';
+  setButtons(true,false,false);
+  showScreen('gameplay');
+}
+
+function startGame(){
+  if(state.phase!=='ready') return;
+  setButtons(false,false,false);
+  el.statusMsg.textContent='Shuffling and dealing...';
+  window.setTimeout(function(){
+    state.deck=shuffle(createDeck());
+    state.playerHand=[drawCard(),drawCard()];
+    state.dealerHand=[drawCard(),drawCard()];
+    state.dealerHoleHidden=true;
+    renderHands();
+    var pBJ=isBlackjack(state.playerHand);
+    var dBJ=isBlackjack(state.dealerHand);
+    if(pBJ || dBJ){
+      state.dealerHoleHidden=false;
+      renderHands();
+      if(pBJ && dBJ){ settle('push-blackjack'); }
+      else if(pBJ){ settle('player-blackjack'); }
+      else { settle('dealer-blackjack'); }
+      return;
+    }
+    state.phase='player-turn';
+    el.statusMsg.textContent='Your turn - Hit or Stand?';
+    setButtons(false,true,true);
+  },450);
+}
+
+function hit(){
+  if(state.phase!=='player-turn') return;
+  setButtons(false,false,false);
+  state.playerHand.push(drawCard());
+  renderHands();
+  var score=computeScore(state.playerHand);
+  if(score>21){
+    el.statusMsg.textContent='Bust!';
+    state.dealerHoleHidden=false;
+    renderHands();
+    window.setTimeout(function(){ settle('player-bust'); },400);
+  } else if(score===21){
+    el.statusMsg.textContent='21! Standing automatically.';
+    window.setTimeout(stand,400);
+  } else {
+    el.statusMsg.textContent='Your turn - Hit or Stand?';
+    setButtons(false,true,true);
+  }
+}
+
+function stand(){
+  if(state.phase!=='player-turn') return;
+  state.phase='dealer-turn';
+  setButtons(false,false,false);
+  state.dealerHoleHidden=false;
+  el.statusMsg.textContent='Dealer\u2019s turn...';
+  renderHands();
+  window.setTimeout(dealerStep,500);
+}
+
+function dealerStep(){
+  var score=computeScore(state.dealerHand);
+  if(score<17){
+    state.dealerHand.push(drawCard());
+    renderHands();
+    window.setTimeout(dealerStep,500);
+  } else {
+    finishComparison();
+  }
+}
+
+function finishComparison(){
+  var pScore=computeScore(state.playerHand);
+  var dScore=computeScore(state.dealerHand);
+  if(dScore>21){ settle('dealer-bust'); }
+  else if(pScore>dScore){ settle('player-win'); }
+  else if(dScore>pScore){ settle('dealer-win'); }
+  else { settle('push'); }
+}
+
+function settle(type){
+  state.phase='settled';
+  var bet=state.bet;
+  var message='';
+  switch(type){
+    case 'player-blackjack':
+      state.bankroll+=Math.round(bet*1.5);
+      message='Round Over: Blackjack! You win '+fmt(Math.round(bet*1.5))+'. You are the winner.';
+      break;
+    case 'dealer-blackjack':
+      state.bankroll-=bet;
+      message='Round Over: Dealer has Blackjack. You lose '+fmt(bet)+'. Dealer is the winner.';
+      break;
+    case 'push-blackjack':
+      message='Round Over: Push - both have Blackjack. Bet returned.';
+      break;
+    case 'player-bust':
+      state.bankroll-=bet;
+      message='Round Over: You busted. Dealer wins '+fmt(bet)+'. Dealer is the winner.';
+      break;
+    case 'dealer-bust':
+      state.bankroll+=bet;
+      message='Round Over: Dealer busted! You win '+fmt(bet)+'. You are the winner.';
+      break;
+    case 'player-win':
+      state.bankroll+=bet;
+      message='Round Over: You win '+fmt(bet)+'! Outcome: you are the winner.';
+      break;
+    case 'dealer-win':
+      state.bankroll-=bet;
+      message='Round Over: Dealer wins '+fmt(bet)+'. Outcome: dealer is the winner.';
+      break;
+    case 'push':
+      message='Round Over: Push. Bet returned.';
+      break;
+    default:
+      message='Round Over.';
+  }
+  state.lastOutcome=type;
+  state.gameOver = state.bankroll<=0;
+  if(state.gameOver){
+    message+=' Game Over - bankroll depleted. Click Play Again to restart.';
+  }
+  el.resultText.textContent=message;
+  el.resultText.setAttribute('data-outcome', state.gameOver ? 'game-over' : type);
+  el.finalBankroll.textContent=fmt(state.bankroll);
+  renderHands();
+  showScreen('result');
+}
+
+function playAgain(){
+  if(state.gameOver){
+    state.bankroll=STARTING_BANKROLL;
+    state.gameOver=false;
+  }
+  goToBetting();
+}
+
+el.placeBetBtn.addEventListener('click', placeBet);
+el.startBtn.addEventListener('click', startGame);
+el.hitBtn.addEventListener('click', hit);
+el.standBtn.addEventListener('click', stand);
+el.playAgainBtn.addEventListener('click', playAgain);
+
+el.betInput.addEventListener('keydown', function(e){
+  if(e.key==='Enter'){ e.preventDefault(); placeBet(); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); el.betInput.value=String((parseInt(el.betInput.value,10)||0)+10); }
+  else if(e.key==='ArrowDown'){ e.preventDefault(); el.betInput.value=String(Math.max(0,(parseInt(el.betInput.value,10)||0)-10)); }
+});
+
+document.addEventListener('keydown', function(e){
+  if(currentScreenName==='betting'){
+    if(e.key==='Enter' && document.activeElement!==el.betInput){ placeBet(); }
+  } else if(currentScreenName==='gameplay'){
+    var k=e.key.toLowerCase();
+    if(k==='h'){ if(!el.hitBtn.disabled){ hit(); } }
+    else if(k==='s'){ if(!el.standBtn.disabled){ stand(); } }
+    else if(e.key===' ' || e.key==='Enter'){ if(!el.startBtn.disabled){ startGame(); } }
+  } else if(currentScreenName==='result'){
+    if(e.key==='Enter'){ playAgain(); }
+  }
+});
+
+function resizeCanvas(){
+  var dpr=window.devicePixelRatio||1;
+  var cssWidth=el.canvas.clientWidth || 380;
+  var cssHeight=cssWidth*(440/380);
+  el.canvas.style.height=cssHeight+'px';
+  el.canvas.width=Math.round(cssWidth*dpr);
+  el.canvas.height=Math.round(cssHeight*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', resizeCanvas);
+
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+function drawCardShape(x,y,w,h,label,faceDown){
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,0.4)';
+  ctx.shadowBlur=4;
+  ctx.fillStyle = faceDown ? '#1b3a8f' : '#f7f3e9';
+  roundRect(x,y,w,h,6);
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle='#222';
+  ctx.lineWidth=1.5;
+  roundRect(x,y,w,h,6);
+  ctx.stroke();
+  if(faceDown){
+    ctx.strokeStyle='#5577cc';
+    ctx.lineWidth=2;
+    for(var i=4;i<w-4;i+=6){
+      ctx.beginPath();
+      ctx.moveTo(x+i,y+4);
+      ctx.lineTo(x+i,y+h-4);
+      ctx.stroke();
+    }
+    return;
+  }
+  var isRed = RED_SUITS.indexOf(label.charAt(label.length-1))!==-1;
+  ctx.fillStyle = isRed ? '#c0392b' : '#1a1a1a';
+  ctx.font='bold '+Math.floor(h*0.28)+'px system-ui, sans-serif';
+  ctx.textAlign='left';
+  ctx.textBaseline='top';
+  var rankPart=label.slice(0,-1);
+  ctx.fillText(rankPart, x+6, y+6);
+  ctx.font=Math.floor(h*0.4)+'px system-ui, sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText(label.charAt(label.length-1), x+w/2, y+h*0.38);
+}
+
+function renderCanvas(){
+  var w=el.canvas.clientWidth||380;
+  var h=w*(440/380);
+  ctx.clearRect(0,0,w,h);
+  var grad=ctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0,'#0f4c2a');
+  grad.addColorStop(1,'#07301a');
+  ctx.fillStyle=grad;
+  ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle='rgba(255,255,255,0.15)';
+  ctx.lineWidth=2;
+  roundRect(8,8,w-16,h-16,20);
+  ctx.stroke();
+
+  ctx.fillStyle='rgba(255,255,255,0.75)';
+  ctx.font='14px system-ui, sans-serif';
+  ctx.textAlign='left';
+  ctx.textBaseline='top';
+  ctx.fillText('DEALER', 16, 16);
+  ctx.fillText('YOU', 16, h-110);
+
+  var cardW=52, cardH=76, gap=14;
+  var dealerY=36;
+  state.dealerHand.forEach(function(c,i){
+    var faceDown = (i===1 && state.dealerHoleHidden);
+    drawCardShape(16+i*(cardW+gap), dealerY, cardW, cardH, cardLabel(c), faceDown);
+  });
+  var playerY=h-90;
+  state.playerHand.forEach(function(c,i){
+    drawCardShape(16+i*(cardW+gap), playerY, cardW, cardH, cardLabel(c), false);
+  });
+
+  ctx.fillStyle='rgba(255,255,255,0.6)';
+  ctx.font='12px system-ui, sans-serif';
+  ctx.textAlign='right';
+  ctx.fillText('Bankroll '+fmt(state.bankroll), w-16, h-16);
+}
+
+function loop(){
+  renderCanvas();
+  window.requestAnimationFrame(loop);
+}
+
+function init(){
+  resizeCanvas();
+  updateBettingDisplays();
+  renderHands();
+  setButtons(false,false,false);
+  showScreen('betting');
+  window.requestAnimationFrame(loop);
+}
+
+init();
+
+})();
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./sw.js');
+  });
+}
+</script>
+</body>
+</html>
+<!--kenji-preview-sha:e378f174ae63a61b-->
