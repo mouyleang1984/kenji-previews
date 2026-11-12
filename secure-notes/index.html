@@ -260,7 +260,7 @@ section{margin-bottom:20px;}
 
     return db
       .from("notes")
-      .select("id,title,body,owner_id,created_at,updated_at")
+      .select("*")
       .order("created_at", { ascending: false })
       .then(function (res) {
         if (thisVersion !== dataVersion) return;
@@ -488,4 +488,4 @@ section{margin-bottom:20px;}
 <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js').catch(function(){});});}</script>
 </body>
 </html>
-<!--kenji-preview-sha:45a041f1961b9d87-->
+<!--kenji-preview-sha:48b036b24d2d72f4-->
